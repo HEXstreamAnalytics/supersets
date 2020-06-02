@@ -1,111 +1,88 @@
-import React from 'react';
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import SvgIcon from '@material-ui/core/SvgIcon';
-import { fade, makeStyles, withStyles } from '@material-ui/core/styles';
-import TreeView from '@material-ui/lab/TreeView';
-import TreeItem from '@material-ui/lab/TreeItem';
-import Collapse from '@material-ui/core/Collapse';
-import { useSpring, animated } from 'react-spring/web.cjs'; // web.cjs is required for IE 11 support
-import FolderIcon from '@material-ui/icons/Folder';
-import FolderOpenIcon from '@material-ui/icons/FolderOpen';
-import EqualizerIcon from '@material-ui/icons/Equalizer';
+import { Panel, Row, Col, Tabs, Tab, FormControl } from 'react-bootstrap';
+import { t } from '@superset-ui/translation';
+import { useQueryParam, StringParam } from 'use-query-params';
+import MyFolder from './MyFolder';
 
-function TransitionComponent(props) {
-  const style = useSpring({
-    from: { opacity: 0, transform: 'translate3d(20px,0,0)' },
-    to: {
-      opacity: props.in ? 1 : 0,
-      transform: `translate3d(${props.in ? 0 : 20}px,0,0)`,
-    },
-  });
+const propTypes = {
+  user: PropTypes.object.isRequired,
+};
+
+function useSyncQueryState(queryParam, queryParamType, defaultState) {
+  const [queryState, setQueryState] = useQueryParam(queryParam, queryParamType);
+  const [state, setState] = useState(queryState || defaultState);
+
+  const setQueryStateAndState = val => {
+    setQueryState(val);
+    setState(val);
+  };
+
+  return [state, setQueryStateAndState];
+}
+
+export default function Welcome({ user }) {
+  const [activeTab, setActiveTab] = useSyncQueryState(
+    'activeTab',
+    StringParam,
+    'all',
+  );
 
   return (
-    <animated.div style={style}>
-      <Collapse {...props} />
-    </animated.div>
+    <div className="container welcome">
+      <Tabs
+        activeKey={activeTab}
+        onSelect={setActiveTab}
+        id="uncontrolled-tab-example"
+      >
+        <Tab eventKey="all" title={t('Dashboards')}>
+          <Panel>
+            <Panel.Body>
+              <Row>
+                <Col md={8}>
+                  <h2>{t('Dashboards')}</h2>
+                </Col>
+              </Row>
+              <hr />
+              <MyFolder user={user} share={0}/>
+            </Panel.Body>
+          </Panel>
+        </Tab>
+
+        <Tab eventKey="favorites" title={t('Favorites')}>
+          <Panel>
+            <Panel.Body>
+              <Row>
+                <Col md={8}>
+                  <h2>{t('Favorites')}</h2>
+                </Col>
+              </Row>
+              <hr />
+              <MyFolder user={user} share={1}/>
+            </Panel.Body>
+          </Panel>
+        </Tab>
+      </Tabs>
+    </div>
   );
 }
 
-TransitionComponent.propTypes = {
-  /**
-   * Show the component; triggers the enter or exit states
-   */
-  in: PropTypes.bool,
-};
-
-const StyledTreeItem = withStyles(theme => ({
-  iconContainer: {
-    '& .close': {
-      opacity: 0.3,
-    },
-  },
-  group: {
-    marginLeft: 7,
-    paddingLeft: 18,
-    //  borderLeft: `1px dashed ${fade(theme.palette.text.primary, 0.4)}`,
-  },
-}))(props => <TreeItem {...props} TransitionComponent={TransitionComponent} />);
-
-const useStyles = makeStyles({
-  root: {
-    height: 264,
-    flexGrow: 1,
-    maxWidth: 400,
-  },
-});
-
-const FolderView = () => {
-  const classes = useStyles();
-  const data = {
-    id: 'root',
-    name: 'Parent',
-    children: [
-      {
-        id: '1',
-        name: 'My Folders',
-        children: [
-          {
-            id: '4',
-            name: 'Child - 4',
-            children: [
-              {
-                id: '5',
-                name: 'Child - 5',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: '3',
-        name: 'Shared Folders',
-        children: [
-          {
-            id: '4',
-            name: 'Child - 4',
-          },
-        ],
-      },
-    ],
-  };
-  const renderTree = nodes => (
-    <StyledTreeItem key={nodes.id} nodeId={nodes.id} label={nodes.name}>
-      {Array.isArray(nodes.children)
-        ? nodes.children.map(node => renderTree(node))
-        : null}
-    </StyledTreeItem>
-  );
-  return (
-    <TreeView
-      className={classes.root}
-      defaultExpanded={['1']}
-      defaultCollapseIcon={<FolderOpenIcon />}
-      defaultExpandIcon={<FolderIcon />}
-      defaultEndIcon={<EqualizerIcon />}
-    >
-      {renderTree(data)}
-    </TreeView>
-  );
-};
-
-export default FolderView;
+Welcome.propTypes = propTypes;

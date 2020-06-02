@@ -22,7 +22,7 @@ import {
   INFO_TOAST,
   SUCCESS_TOAST,
   WARNING_TOAST,
-  DANGER_TOAST,
+  DANGER_TOAST
 } from '../constants';
 
 export function getToastUuid(type) {
@@ -75,4 +75,41 @@ export const ADD_DANGER_TOAST = 'ADD_DANGER_TOAST';
 export function addDangerToast(text) {
   return dispatch =>
     dispatch(addToast({ text, toastType: DANGER_TOAST, duration: 8000 }));
+}
+
+
+export const GET_FOLDERVIEW_DATA = 'GET_FOLDERVIEW_DATA';
+export function getFolderviewData() {
+  return dispatch =>
+    dispatch({
+      type: GET_FOLDERVIEW_DATA,
+      payload: {},
+    });
+}
+
+export const CHANGE_FOLDERVIEW_DATA = 'CHANGE_FOLDERVIEW_DATA';
+export function changeFolderviewData(item) {
+  return dispatch =>
+    dispatch({
+      type: CHANGE_FOLDERVIEW_DATA,
+      payload: { item: item },
+    });
+}
+
+export const REMOVE_FOLDERVIEW_DATA = 'REMOVE_FOLDERVIEW_DATA';
+export function removeFolderviewData(id) {
+  return dispatch =>
+    dispatch({
+      type: REMOVE_FOLDERVIEW_DATA,
+      payload: {id: id},
+    });
+}
+
+export const ADD_FOLDERVIEW_DATA = 'ADD_FOLDERVIEW_DATA';
+export function addFolderviewData(item) {
+  return dispatch =>
+    dispatch({
+      type: ADD_FOLDERVIEW_DATA,
+      payload: {item: item},
+    });
 }

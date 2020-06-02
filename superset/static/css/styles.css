@@ -16,3 +16,6 @@ label {
     border-color: #FF0217;
     font-family: "Myraid Pro DemiBold";
 }
+.navbar-brand {
+    margin-top: -10px;
+}
