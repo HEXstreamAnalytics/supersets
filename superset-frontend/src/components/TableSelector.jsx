@@ -18,7 +18,7 @@
  */
 import React from 'react';
 import PropTypes from 'prop-types';
-import Select from 'src/components/Select';
+import Select from 'react-virtualized-select';
 import { ControlLabel, Label } from 'react-bootstrap';
 import { t } from '@superset-ui/translation';
 import { SupersetClient } from '@superset-ui/connection';
@@ -221,18 +221,41 @@ export default class TableSelector extends React.PureComponent {
       </span>
     );
   }
-  renderTableOption(option) {
+  renderTableOption({
+    focusOption,
+    focusedOption,
+    key,
+    option,
+    selectValue,
+    style,
+    valueArray,
+  }) {
+    const classNames = ['Select-option'];
+    if (option === focusedOption) {
+      classNames.push('is-focused');
+    }
+    if (valueArray.indexOf(option) >= 0) {
+      classNames.push('is-selected');
+    }
     return (
-      <span className="TableLabel">
-        <span className="m-r-5">
-          <small className="text-muted">
-            <i
-              className={`fa fa-${option.type === 'view' ? 'eye' : 'table'}`}
-            />
-          </small>
+      <div
+        className={classNames.join(' ')}
+        key={key}
+        onClick={() => selectValue(option)}
+        onMouseEnter={() => focusOption(option)}
+        style={style}
+      >
+        <span className="TableLabel">
+          <span className="m-r-5">
+            <small className="text-muted">
+              <i
+                className={`fa fa-${option.type === 'view' ? 'eye' : 'table'}`}
+              />
+            </small>
+          </span>
+          {option.label}
         </span>
-        {option.label}
-      </span>
+      </div>
     );
   }
   renderSelectRow(select, refreshBtn) {

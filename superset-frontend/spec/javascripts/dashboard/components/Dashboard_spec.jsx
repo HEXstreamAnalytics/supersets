@@ -62,10 +62,10 @@ describe('Dashboard', () => {
 
   // activeFilters map use id_column) as key
   const OVERRIDE_FILTERS = {
-    '1_region': { values: [], scope: [1] },
-    '2_country_name': { values: ['USA'], scope: [1, 2] },
-    '3_region': { values: [], scope: [1] },
-    '3_country_name': { values: ['USA'], scope: [] },
+    '1_region': [],
+    '2_country_name': ['USA'],
+    '3_region': [],
+    '3_country_name': ['USA'],
   };
 
   it('should render a DashboardBuilder', () => {
@@ -143,13 +143,19 @@ describe('Dashboard', () => {
 
     it('should call refresh if a filter is added', () => {
       const newFilter = {
-        gender: { values: ['boy', 'girl'], scope: [1] },
+        gender: ['boy', 'girl'],
       };
       wrapper.setProps({
-        activeFilters: newFilter,
+        activeFilters: {
+          ...OVERRIDE_FILTERS,
+          ...newFilter,
+        },
       });
       expect(refreshSpy.callCount).toBe(1);
-      expect(wrapper.instance().appliedFilters).toEqual(newFilter);
+      expect(wrapper.instance().appliedFilters).toEqual({
+        ...OVERRIDE_FILTERS,
+        ...newFilter,
+      });
     });
 
     it('should call refresh if a filter is removed', () => {
@@ -161,55 +167,17 @@ describe('Dashboard', () => {
     });
 
     it('should call refresh if a filter is changed', () => {
-      const newFilters = {
-        ...OVERRIDE_FILTERS,
-        '1_region': { values: ['Canada'], scope: [1] },
-      };
       wrapper.setProps({
-        activeFilters: newFilters,
+        activeFilters: {
+          ...OVERRIDE_FILTERS,
+          '1_region': ['Canada'],
+        },
       });
       expect(refreshSpy.callCount).toBe(1);
-      expect(wrapper.instance().appliedFilters).toEqual(newFilters);
-      expect(refreshSpy.getCall(0).args[0]).toEqual([1]);
-    });
-
-    it('should call refresh with multiple chart ids', () => {
-      const newFilters = {
+      expect(wrapper.instance().appliedFilters).toEqual({
         ...OVERRIDE_FILTERS,
-        '2_country_name': { values: ['New Country'], scope: [1, 2] },
-      };
-      wrapper.setProps({
-        activeFilters: newFilters,
+        '1_region': ['Canada'],
       });
-      expect(refreshSpy.callCount).toBe(1);
-      expect(wrapper.instance().appliedFilters).toEqual(newFilters);
-      expect(refreshSpy.getCall(0).args[0]).toEqual([1, 2]);
-    });
-
-    it('should call refresh if a filter scope is changed', () => {
-      const newFilters = {
-        ...OVERRIDE_FILTERS,
-        '3_country_name': { values: ['USA'], scope: [2] },
-      };
-
-      wrapper.setProps({
-        activeFilters: newFilters,
-      });
-      expect(refreshSpy.callCount).toBe(1);
-      expect(refreshSpy.getCall(0).args[0]).toEqual([2]);
-    });
-
-    it('should call refresh with empty [] if a filter is changed but scope is not applicable', () => {
-      const newFilters = {
-        ...OVERRIDE_FILTERS,
-        '3_country_name': { values: ['CHINA'], scope: [] },
-      };
-
-      wrapper.setProps({
-        activeFilters: newFilters,
-      });
-      expect(refreshSpy.callCount).toBe(1);
-      expect(refreshSpy.getCall(0).args[0]).toEqual([]);
     });
   });
 });

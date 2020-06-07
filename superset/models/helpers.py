@@ -18,8 +18,8 @@
 import json
 import logging
 import re
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Union
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # isort and pylint disagree, isort should win
 # pylint: disable=ungrouped-imports
@@ -30,10 +30,8 @@ import yaml
 from flask import escape, g, Markup
 from flask_appbuilder.models.decorators import renders
 from flask_appbuilder.models.mixins import AuditMixin
-from flask_appbuilder.security.sqla.models import User
 from sqlalchemy import and_, or_, UniqueConstraint
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import MultipleResultsFound
 
 from superset.utils.core import QueryStatus
@@ -41,7 +39,7 @@ from superset.utils.core import QueryStatus
 logger = logging.getLogger(__name__)
 
 
-def json_to_dict(json_str: str) -> Dict[Any, Any]:
+def json_to_dict(json_str):
     if json_str:
         val = re.sub(",[ \t\r\n]+}", "}", json_str)
         val = re.sub(
@@ -66,56 +64,48 @@ class ImportMixin:
     # that are available for import and export
 
     @classmethod
-    def _parent_foreign_key_mappings(cls) -> Dict[str, str]:
+    def _parent_foreign_key_mappings(cls):
         """Get a mapping of foreign name to the local name of foreign keys"""
-        parent_rel = cls.__mapper__.relationships.get(cls.export_parent)  # type: ignore
+        parent_rel = cls.__mapper__.relationships.get(cls.export_parent)
         if parent_rel:
             return {l.name: r.name for (l, r) in parent_rel.local_remote_pairs}
         return {}
 
     @classmethod
-    def _unique_constrains(cls) -> List[Set[str]]:
+    def _unique_constrains(cls):
         """Get all (single column and multi column) unique constraints"""
         unique = [
             {c.name for c in u.columns}
-            for u in cls.__table_args__  # type: ignore
+            for u in cls.__table_args__
             if isinstance(u, UniqueConstraint)
         ]
-        unique.extend(  # type: ignore
-            {c.name} for c in cls.__table__.columns if c.unique  # type: ignore
-        )
+        unique.extend({c.name} for c in cls.__table__.columns if c.unique)
         return unique
 
     @classmethod
-    def export_schema(
-        cls, recursive: bool = True, include_parent_ref: bool = False
-    ) -> Dict[str, Any]:
+    def export_schema(cls, recursive=True, include_parent_ref=False):
         """Export schema as a dictionary"""
-        parent_excludes = set()
+        parent_excludes = {}
         if not include_parent_ref:
-            parent_ref = cls.__mapper__.relationships.get(  # type: ignore
-                cls.export_parent
-            )
+            parent_ref = cls.__mapper__.relationships.get(cls.export_parent)
             if parent_ref:
                 parent_excludes = {column.name for column in parent_ref.local_columns}
 
-        def formatter(column: sa.Column) -> str:
+        def formatter(column):
             return (
                 "{0} Default ({1})".format(str(column.type), column.default.arg)
                 if column.default
                 else str(column.type)
             )
 
-        schema: Dict[str, Any] = {
+        schema = {
             column.name: formatter(column)
-            for column in cls.__table__.columns  # type: ignore
+            for column in cls.__table__.columns
             if (column.name in cls.export_fields and column.name not in parent_excludes)
         }
         if recursive:
             for column in cls.export_children:
-                child_class = cls.__mapper__.relationships[  # type: ignore
-                    column
-                ].argument.class_
+                child_class = cls.__mapper__.relationships[column].argument.class_
                 schema[column] = [
                     child_class.export_schema(
                         recursive=recursive, include_parent_ref=include_parent_ref
@@ -124,20 +114,17 @@ class ImportMixin:
         return schema
 
     @classmethod
-    def import_from_dict(  # pylint: disable=too-many-arguments,too-many-branches,too-many-locals
-        cls,
-        session: Session,
-        dict_rep: Dict[Any, Any],
-        parent: Optional[Any] = None,
-        recursive: bool = True,
-        sync: Optional[List[str]] = None,
-    ) -> Any:  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
+    def import_from_dict(
+        cls, session, dict_rep, parent=None, recursive=True, sync=None
+    ):  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
         """Import obj from a dictionary"""
         if sync is None:
             sync = []
         parent_refs = cls._parent_foreign_key_mappings()
         export_fields = set(cls.export_fields) | set(parent_refs.keys())
-        new_children = {c: dict_rep[c] for c in cls.export_children if c in dict_rep}
+        new_children = {
+            c: dict_rep.get(c) for c in cls.export_children if c in dict_rep
+        }
         unique_constrains = cls._unique_constrains()
 
         filters = []  # Using these filters to check if obj already exists
@@ -191,7 +178,7 @@ class ImportMixin:
         if not obj:
             is_new_obj = True
             # Create new DB object
-            obj = cls(**dict_rep)  # type: ignore
+            obj = cls(**dict_rep)
             logger.info("Importing new %s %s", obj.__tablename__, str(obj))
             if cls.export_parent and parent:
                 setattr(obj, cls.export_parent, parent)
@@ -206,9 +193,7 @@ class ImportMixin:
         # Recursively create children
         if recursive:
             for child in cls.export_children:
-                child_class = cls.__mapper__.relationships[  # type: ignore
-                    child
-                ].argument.class_
+                child_class = cls.__mapper__.relationships[child].argument.class_
                 added = []
                 for c_obj in new_children.get(child, []):
                     added.append(
@@ -236,23 +221,18 @@ class ImportMixin:
         return obj
 
     def export_to_dict(
-        self,
-        recursive: bool = True,
-        include_parent_ref: bool = False,
-        include_defaults: bool = False,
-    ) -> Dict[Any, Any]:
+        self, recursive=True, include_parent_ref=False, include_defaults=False
+    ):
         """Export obj to dictionary"""
         cls = self.__class__
-        parent_excludes = set()
+        parent_excludes = {}
         if recursive and not include_parent_ref:
-            parent_ref = cls.__mapper__.relationships.get(  # type: ignore
-                cls.export_parent
-            )
+            parent_ref = cls.__mapper__.relationships.get(cls.export_parent)
             if parent_ref:
                 parent_excludes = {c.name for c in parent_ref.local_columns}
         dict_rep = {
             c.name: getattr(self, c.name)
-            for c in cls.__table__.columns  # type: ignore
+            for c in cls.__table__.columns
             if (
                 c.name in self.export_fields
                 and c.name not in parent_excludes
@@ -282,18 +262,18 @@ class ImportMixin:
 
         return dict_rep
 
-    def override(self, obj: Any) -> None:
+    def override(self, obj):
         """Overrides the plain fields of the dashboard."""
         for field in obj.__class__.export_fields:
             setattr(self, field, getattr(obj, field))
 
-    def copy(self) -> Any:
+    def copy(self):
         """Creates a copy of the dashboard without relationships."""
         new_obj = self.__class__()
         new_obj.override(self)
         return new_obj
 
-    def alter_params(self, **kwargs: Any) -> None:
+    def alter_params(self, **kwargs):
         params = self.params_dict
         params.update(kwargs)
         self.params = json.dumps(params)
@@ -303,7 +283,7 @@ class ImportMixin:
         params.pop(param_to_remove, None)
         self.params = json.dumps(params)
 
-    def reset_ownership(self) -> None:
+    def reset_ownership(self):
         """ object will belong to the user the current user """
         # make sure the object doesn't have relations to a user
         # it will be filled by appbuilder on save
@@ -317,15 +297,15 @@ class ImportMixin:
             self.owners = []
 
     @property
-    def params_dict(self) -> Dict[Any, Any]:
+    def params_dict(self):
         return json_to_dict(self.params)
 
     @property
-    def template_params_dict(self) -> Dict[Any, Any]:
-        return json_to_dict(self.template_params)  # type: ignore
+    def template_params_dict(self):
+        return json_to_dict(self.template_params)
 
 
-def _user_link(user: User) -> Union[Markup, str]:  # pylint: disable=no-self-use
+def _user_link(user):  # pylint: disable=no-self-use
     if not user:
         return ""
     url = "/superset/profile/{}/".format(user.username)
@@ -345,7 +325,7 @@ class AuditMixinNullable(AuditMixin):
     )
 
     @declared_attr
-    def created_by_fk(self) -> sa.Column:
+    def created_by_fk(self):
         return sa.Column(
             sa.Integer,
             sa.ForeignKey("ab_user.id"),
@@ -354,7 +334,7 @@ class AuditMixinNullable(AuditMixin):
         )
 
     @declared_attr
-    def changed_by_fk(self) -> sa.Column:
+    def changed_by_fk(self):
         return sa.Column(
             sa.Integer,
             sa.ForeignKey("ab_user.id"),
@@ -363,29 +343,29 @@ class AuditMixinNullable(AuditMixin):
             nullable=True,
         )
 
-    def changed_by_name(self) -> str:
+    def changed_by_name(self):
         if self.created_by:
             return escape("{}".format(self.created_by))
         return ""
 
     @renders("created_by")
-    def creator(self) -> Union[Markup, str]:
+    def creator(self):
         return _user_link(self.created_by)
 
     @property
-    def changed_by_(self) -> Union[Markup, str]:
+    def changed_by_(self):
         return _user_link(self.changed_by)
 
     @renders("changed_on")
-    def changed_on_(self) -> Markup:
+    def changed_on_(self):
         return Markup(f'<span class="no-wrap">{self.changed_on}</span>')
 
     @property
-    def changed_on_humanized(self) -> str:
+    def changed_on_humanized(self):
         return humanize.naturaltime(datetime.now() - self.changed_on)
 
     @renders("changed_on")
-    def modified(self) -> Markup:
+    def modified(self):
         return Markup(f'<span class="no-wrap">{self.changed_on_humanized}</span>')
 
 
@@ -395,19 +375,19 @@ class QueryResult:  # pylint: disable=too-few-public-methods
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        df: pd.DataFrame,
-        query: str,
-        duration: timedelta,
-        status: str = QueryStatus.SUCCESS,
-        error_message: Optional[str] = None,
-        errors: Optional[List[Dict[str, Any]]] = None,
-    ) -> None:
-        self.df = df
-        self.query = query
-        self.duration = duration
-        self.status = status
-        self.error_message = error_message
-        self.errors = errors or []
+        df,
+        query,
+        duration,
+        status=QueryStatus.SUCCESS,
+        error_message=None,
+        errors=None,
+    ):
+        self.df: pd.DataFrame = df
+        self.query: str = query
+        self.duration: int = duration
+        self.status: str = status
+        self.error_message: Optional[str] = error_message
+        self.errors: List[Dict[str, Any]] = errors or []
 
 
 class ExtraJSONMixin:
@@ -416,16 +396,16 @@ class ExtraJSONMixin:
     extra_json = sa.Column(sa.Text, default="{}")
 
     @property
-    def extra(self) -> Dict[str, Any]:
+    def extra(self):
         try:
             return json.loads(self.extra_json)
         except Exception:  # pylint: disable=broad-except
             return {}
 
-    def set_extra_json(self, extras: Dict[str, Any]) -> None:
+    def set_extra_json(self, extras):
         self.extra_json = json.dumps(extras)
 
-    def set_extra_json_key(self, key: str, value: Any) -> None:
+    def set_extra_json_key(self, key, value):
         extra = self.extra
         extra[key] = value
         self.extra_json = json.dumps(extra)

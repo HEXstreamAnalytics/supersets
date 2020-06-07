@@ -20,12 +20,12 @@ from typing import Any, Dict, Hashable, List, Optional, Type
 from flask_appbuilder.security.sqla.models import User
 from sqlalchemy import and_, Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import foreign, Query, relationship, RelationshipProperty
+from sqlalchemy.orm import foreign, Query, relationship
 
 from superset.constants import NULL_STRING
 from superset.models.helpers import AuditMixinNullable, ImportMixin, QueryResult
 from superset.models.slice import Slice
-from superset.typing import FilterValue, FilterValues, QueryObjectDict
+from superset.typing import FilterValue, FilterValues
 from superset.utils import core as utils
 
 METRIC_FORM_DATA_PARAMS = [
@@ -61,6 +61,9 @@ class BaseDatasource(
     # class attributes to define when deriving BaseDatasource
     # ---------------------------------------------------------------
     __tablename__: Optional[str] = None  # {connector_name}_datasource
+    type: Optional[  # datasoure type, str to be defined when deriving this class
+        str
+    ] = None
     baselink: Optional[str] = None  # url portion pointing to ModelView endpoint
     column_class: Optional[Type] = None  # link to derivative of BaseColumn
     metric_class: Optional[Type] = None  # link to derivative of BaseMetric
@@ -90,7 +93,7 @@ class BaseDatasource(
     update_from_object_fields: List[str]
 
     @declared_attr
-    def slices(self) -> RelationshipProperty:
+    def slices(self):
         return relationship(
             "Slice",
             primaryjoin=lambda: and_(
@@ -105,10 +108,6 @@ class BaseDatasource(
     metrics: List[Any] = []
 
     @property
-    def type(self) -> str:
-        raise NotImplementedError()
-
-    @property
     def uid(self) -> str:
         """Unique id across datasource types"""
         return f"{self.id}__{self.type}"
@@ -118,7 +117,7 @@ class BaseDatasource(
         return sorted([c.column_name for c in self.columns], key=lambda x: x or "")
 
     @property
-    def columns_types(self) -> Dict[str, str]:
+    def columns_types(self) -> Dict:
         return {c.column_name: c.type for c in self.columns}
 
     @property
@@ -126,7 +125,7 @@ class BaseDatasource(
         return "timestamp"
 
     @property
-    def datasource_name(self) -> str:
+    def datasource_name(self):
         raise NotImplementedError()
 
     @property
@@ -144,7 +143,7 @@ class BaseDatasource(
         return sorted([c.column_name for c in self.columns if c.filterable])
 
     @property
-    def dttm_cols(self) -> List[str]:
+    def dttm_cols(self) -> List:
         return []
 
     @property
@@ -183,7 +182,7 @@ class BaseDatasource(
         }
 
     @property
-    def select_star(self) -> Optional[str]:
+    def select_star(self):
         pass
 
     @property
@@ -337,18 +336,18 @@ class BaseDatasource(
                 values = None
         return values
 
-    def external_metadata(self) -> List[Dict[str, str]]:
+    def external_metadata(self):
         """Returns column information from the external system"""
         raise NotImplementedError()
 
-    def get_query_str(self, query_obj: QueryObjectDict) -> str:
+    def get_query_str(self, query_obj) -> str:
         """Returns a query as a string
 
         This is used to be displayed to the user so that she/he can
         understand what is taking place behind the scene"""
         raise NotImplementedError()
 
-    def query(self, query_obj: QueryObjectDict) -> QueryResult:
+    def query(self, query_obj) -> QueryResult:
         """Executes the query and returns a dataframe
 
         query_obj is a dictionary representing Superset's query interface.
@@ -364,7 +363,7 @@ class BaseDatasource(
         raise NotImplementedError()
 
     @staticmethod
-    def default_query(qry: Query) -> Query:
+    def default_query(qry) -> Query:
         return qry
 
     def get_column(self, column_name: Optional[str]) -> Optional["BaseColumn"]:
@@ -377,8 +376,8 @@ class BaseDatasource(
 
     @staticmethod
     def get_fk_many_from_list(
-        object_list: List[Any], fkmany: List[Column], fkmany_class: Type, key_attr: str,
-    ) -> List[Column]:  # pylint: disable=too-many-locals
+        object_list, fkmany, fkmany_class, key_attr
+    ):  # pylint: disable=too-many-locals
         """Update ORM one-to-many list from object list
 
         Used for syncing metrics and columns using the same code"""
@@ -391,9 +390,8 @@ class BaseDatasource(
         # sync existing fks
         for fk in fkmany:
             obj = object_dict.get(getattr(fk, key_attr))
-            if obj:
-                for attr in fkmany_class.update_from_object_fields:
-                    setattr(fk, attr, obj.get(attr))
+            for attr in fkmany_class.update_from_object_fields:
+                setattr(fk, attr, obj.get(attr))
 
         # create new fks
         new_fks = []
@@ -411,7 +409,7 @@ class BaseDatasource(
         fkmany += new_fks
         return fkmany
 
-    def update_from_object(self, obj: Dict[str, Any]) -> None:
+    def update_from_object(self, obj) -> None:
         """Update datasource from a data structure
 
         The UI's table editor crafts a complex data structure that
@@ -428,26 +426,18 @@ class BaseDatasource(
         self.owners = obj.get("owners", [])
 
         # Syncing metrics
-        metrics = (
-            self.get_fk_many_from_list(
-                obj["metrics"], self.metrics, self.metric_class, "metric_name"
-            )
-            if self.metric_class and "metrics" in obj
-            else []
+        metrics = self.get_fk_many_from_list(
+            obj.get("metrics"), self.metrics, self.metric_class, "metric_name"
         )
         self.metrics = metrics
 
         # Syncing columns
-        self.columns = (
-            self.get_fk_many_from_list(
-                obj["columns"], self.columns, self.column_class, "column_name"
-            )
-            if self.column_class and "columns" in obj
-            else []
+        self.columns = self.get_fk_many_from_list(
+            obj.get("columns"), self.columns, self.column_class, "column_name"
         )
 
     def get_extra_cache_keys(  # pylint: disable=no-self-use
-        self, query_obj: QueryObjectDict  # pylint: disable=unused-argument
+        self, query_obj: Dict[str, Any]  # pylint: disable=unused-argument
     ) -> List[Hashable]:
         """ If a datasource needs to provide additional keys for calculation of
         cache keys, those can be provided via this method
@@ -484,7 +474,7 @@ class BaseColumn(AuditMixinNullable, ImportMixin):
     # [optional] Set this to support import/export functionality
     export_fields: List[Any] = []
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return self.column_name
 
     num_types = (
@@ -515,11 +505,11 @@ class BaseColumn(AuditMixinNullable, ImportMixin):
         return self.type and any(map(lambda t: t in self.type.upper(), self.str_types))
 
     @property
-    def expression(self) -> Column:
+    def expression(self):
         raise NotImplementedError()
 
     @property
-    def python_date_format(self) -> Column:
+    def python_date_format(self):
         raise NotImplementedError()
 
     @property
@@ -567,11 +557,11 @@ class BaseMetric(AuditMixinNullable, ImportMixin):
     """
 
     @property
-    def perm(self) -> Optional[str]:
+    def perm(self):
         raise NotImplementedError()
 
     @property
-    def expression(self) -> Column:
+    def expression(self):
         raise NotImplementedError()
 
     @property

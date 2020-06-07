@@ -39,20 +39,16 @@ from email.utils import formatdate
 from enum import Enum
 from time import struct_time
 from timeit import default_timer
-from types import TracebackType
 from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
     Iterator,
     List,
     NamedTuple,
     Optional,
-    Sequence,
     Set,
     Tuple,
-    Type,
     TYPE_CHECKING,
     Union,
 )
@@ -71,12 +67,10 @@ from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 from flask import current_app, flash, g, Markup, render_template
 from flask_appbuilder import SQLA
-from flask_appbuilder.security.sqla.models import Role, User
+from flask_appbuilder.security.sqla.models import User
 from flask_babel import gettext as __, lazy_gettext as _
 from sqlalchemy import event, exc, select, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.engine import Connection, Engine
-from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.sql.type_api import Variant
 from sqlalchemy.types import TEXT, TypeDecorator
 
@@ -85,7 +79,6 @@ from superset.exceptions import (
     SupersetException,
     SupersetTimeoutException,
 )
-from superset.typing import FormData, Metric
 from superset.utils.dates import datetime_to_epoch, EPOCH
 
 try:
@@ -94,7 +87,6 @@ except ImportError:
     pass
 
 if TYPE_CHECKING:
-    from superset.connectors.base.models import BaseDatasource
     from superset.models.core import Database
 
 
@@ -109,7 +101,7 @@ JS_MAX_INTEGER = 9007199254740991  # Largest int Java Script can handle 2^53-1
 try:
     # Having might not have been imported.
     class DimSelector(Having):
-        def __init__(self, **args: Any) -> None:
+        def __init__(self, **args):
             # Just a hack to prevent any exceptions
             Having.__init__(self, type="equalTo", aggregation=None, value=None)
 
@@ -126,7 +118,7 @@ except NameError:
     pass
 
 
-def flasher(msg: str, severity: str = "message") -> None:
+def flasher(msg, severity=None):
     """Flask's flash if available, logging call if not"""
     try:
         flash(msg, severity)
@@ -147,17 +139,17 @@ class _memoized:
     should account for instance variable changes.
     """
 
-    def __init__(self, func: Callable, watch: Optional[List[str]] = None) -> None:
+    def __init__(self, func, watch=()):
         self.func = func
-        self.cache: Dict[Any, Any] = {}
+        self.cache = {}
         self.is_method = False
-        self.watch = watch or []
+        self.watch = watch
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args, **kwargs):
         key = [args, frozenset(kwargs.items())]
         if self.is_method:
             key.append(tuple([getattr(args[0], v, None) for v in self.watch]))
-        key = tuple(key)  # type: ignore
+        key = tuple(key)
         if key in self.cache:
             return self.cache[key]
         try:
@@ -169,25 +161,23 @@ class _memoized:
             # Better to not cache than to blow up entirely.
             return self.func(*args, **kwargs)
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         """Return the function's docstring."""
-        return self.func.__doc__ or ""
+        return self.func.__doc__
 
-    def __get__(self, obj: Any, objtype: Type) -> functools.partial:
+    def __get__(self, obj, objtype):
         if not self.is_method:
             self.is_method = True
         """Support instance methods."""
         return functools.partial(self.__call__, obj)
 
 
-def memoized(
-    func: Optional[Callable] = None, watch: Optional[List[str]] = None
-) -> Callable:
+def memoized(func=None, watch=None):
     if func:
         return _memoized(func)
     else:
 
-        def wrapper(f: Callable) -> Callable:
+        def wrapper(f):
             return _memoized(f, watch)
 
         return wrapper
@@ -236,7 +226,7 @@ def cast_to_num(value: Union[float, int, str]) -> Optional[Union[float, int]]:
         return None
 
 
-def list_minus(l: List[Any], minus: List[Any]) -> List[Any]:
+def list_minus(l: List, minus: List) -> List:
     """Returns l without what is in minus
 
     >>> list_minus([1, 2, 3], [2])
@@ -245,7 +235,7 @@ def list_minus(l: List[Any], minus: List[Any]) -> List[Any]:
     return [o for o in l if o not in minus]
 
 
-def parse_human_datetime(s: str) -> datetime:
+def parse_human_datetime(s: Optional[str]) -> Optional[datetime]:
     """
     Returns ``datetime.datetime`` from human readable strings
 
@@ -266,6 +256,8 @@ def parse_human_datetime(s: str) -> datetime:
     >>> year_ago_1 == year_ago_2
     True
     """
+    if not s:
+        return None
     try:
         dttm = parse(s)
     except Exception:
@@ -291,19 +283,19 @@ def md5_hex(data: str) -> str:
 
 
 class DashboardEncoder(json.JSONEncoder):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sort_keys = True
 
     # pylint: disable=E0202
-    def default(self, o: Any) -> Dict[Any, Any]:
+    def default(self, o):
         try:
             vals = {k: v for k, v in o.__dict__.items() if k != "_sa_instance_state"}
             return {"__{}__".format(o.__class__.__name__): vals}
         except Exception:
             if type(o) == datetime:
                 return {"__datetime__": o.replace(microsecond=0).isoformat()}
-            return json.JSONEncoder(sort_keys=True).default(o)
+            return json.JSONEncoder(sort_keys=True).default(self, o)
 
 
 def parse_human_timedelta(s: Optional[str]) -> timedelta:
@@ -339,15 +331,28 @@ class JSONEncodedDict(TypeDecorator):
 
     impl = TEXT
 
-    def process_bind_param(
-        self, value: Optional[Dict[Any, Any]], dialect: str
-    ) -> Optional[str]:
-        return json.dumps(value) if value is not None else None
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
 
-    def process_result_value(
-        self, value: Optional[str], dialect: str
-    ) -> Optional[Dict[Any, Any]]:
-        return json.loads(value) if value is not None else None
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = json.loads(value)
+        return value
+
+
+def datetime_f(dttm):
+    """Formats datetime to take less room when it is recent"""
+    if dttm:
+        dttm = dttm.isoformat()
+        now_iso = datetime.now().isoformat()
+        if now_iso[:10] == dttm[:10]:
+            dttm = dttm[11:]
+        elif now_iso[:4] == dttm[:4]:
+            dttm = dttm[5:]
+    return "<nobr>{}</nobr>".format(dttm)
 
 
 def format_timedelta(td: timedelta) -> str:
@@ -367,7 +372,7 @@ def format_timedelta(td: timedelta) -> str:
         return str(td)
 
 
-def base_json_conv(obj: Any) -> Any:
+def base_json_conv(obj):
     if isinstance(obj, memoryview):
         obj = obj.tobytes()
     if isinstance(obj, np.int64):
@@ -391,7 +396,7 @@ def base_json_conv(obj: Any) -> Any:
             return "[bytes]"
 
 
-def json_iso_dttm_ser(obj: Any, pessimistic: bool = False) -> str:
+def json_iso_dttm_ser(obj, pessimistic: Optional[bool] = False):
     """
     json serializer that deals with dates
 
@@ -414,14 +419,14 @@ def json_iso_dttm_ser(obj: Any, pessimistic: bool = False) -> str:
     return obj
 
 
-def pessimistic_json_iso_dttm_ser(obj: Any) -> str:
+def pessimistic_json_iso_dttm_ser(obj):
     """Proxy to call json_iso_dttm_ser in a pessimistic way
 
     If one of object is not serializable to json, it will still succeed"""
     return json_iso_dttm_ser(obj, pessimistic=True)
 
 
-def json_int_dttm_ser(obj: Any) -> float:
+def json_int_dttm_ser(obj):
     """json serializer that deals with dates"""
     val = base_json_conv(obj)
     if val is not None:
@@ -435,7 +440,7 @@ def json_int_dttm_ser(obj: Any) -> float:
     return obj
 
 
-def json_dumps_w_dates(payload: Dict[Any, Any]) -> str:
+def json_dumps_w_dates(payload):
     return json.dumps(payload, default=json_int_dttm_ser)
 
 
@@ -516,7 +521,7 @@ def readfile(file_path: str) -> Optional[str]:
 
 def generic_find_constraint_name(
     table: str, columns: Set[str], referenced: str, db: SQLA
-) -> Optional[str]:
+):
     """Utility to find a constraint name in alembic migrations"""
     t = sa.Table(table, db.metadata, autoload=True, autoload_with=db.engine)
 
@@ -524,12 +529,10 @@ def generic_find_constraint_name(
         if fk.referred_table.name == referenced and set(fk.column_keys) == columns:
             return fk.name
 
-    return None
-
 
 def generic_find_fk_constraint_name(
-    table: str, columns: Set[str], referenced: str, insp: Inspector
-) -> Optional[str]:
+    table: str, columns: Set[str], referenced: str, insp
+):
     """Utility to find a foreign-key constraint name in alembic migrations"""
     for fk in insp.get_foreign_keys(table):
         if (
@@ -538,12 +541,8 @@ def generic_find_fk_constraint_name(
         ):
             return fk["name"]
 
-    return None
 
-
-def generic_find_fk_constraint_names(
-    table: str, columns: Set[str], referenced: str, insp: Inspector
-) -> Set[str]:
+def generic_find_fk_constraint_names(table, columns, referenced, insp):
     """Utility to find foreign-key constraint names in alembic migrations"""
     names = set()
 
@@ -557,21 +556,15 @@ def generic_find_fk_constraint_names(
     return names
 
 
-def generic_find_uq_constraint_name(
-    table: str, columns: Set[str], insp: Inspector
-) -> Optional[str]:
+def generic_find_uq_constraint_name(table, columns, insp):
     """Utility to find a unique constraint name in alembic migrations"""
 
     for uq in insp.get_unique_constraints(table):
         if columns == set(uq["column_names"]):
             return uq["name"]
 
-    return None
 
-
-def get_datasource_full_name(
-    database_name: str, datasource_name: str, schema: Optional[str] = None
-) -> str:
+def get_datasource_full_name(database_name, datasource_name, schema=None):
     if not schema:
         return "[{}].[{}]".format(database_name, datasource_name)
     return "[{}].[{}].[{}]".format(database_name, schema, datasource_name)
@@ -586,20 +579,30 @@ def validate_json(obj: Union[bytes, bytearray, str]) -> None:
             raise SupersetException("JSON is not valid")
 
 
+def table_has_constraint(table, name, db):
+    """Utility to find a constraint name in alembic migrations"""
+    t = sa.Table(table, db.metadata, autoload=True, autoload_with=db.engine)
+
+    for c in t.constraints:
+        if c.name == name:
+            return True
+    return False
+
+
 class timeout:
     """
     To be used in a ``with`` block and timeout its content.
     """
 
-    def __init__(self, seconds: int = 1, error_message: str = "Timeout") -> None:
+    def __init__(self, seconds=1, error_message="Timeout"):
         self.seconds = seconds
         self.error_message = error_message
 
-    def handle_timeout(self, signum: int, frame: Any) -> None:
+    def handle_timeout(self, signum, frame):
         logger.error("Process timed out")
         raise SupersetTimeoutException(self.error_message)
 
-    def __enter__(self) -> None:
+    def __enter__(self):
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.alarm(self.seconds)
@@ -607,7 +610,7 @@ class timeout:
             logger.warning("timeout can't be used in the current context")
             logger.exception(ex)
 
-    def __exit__(self, type: Any, value: Any, traceback: TracebackType) -> None:
+    def __exit__(self, type, value, traceback):
         try:
             signal.alarm(0)
         except ValueError as ex:
@@ -615,9 +618,9 @@ class timeout:
             logger.exception(ex)
 
 
-def pessimistic_connection_handling(some_engine: Engine) -> None:
+def pessimistic_connection_handling(some_engine):
     @event.listens_for(some_engine, "engine_connect")
-    def ping_connection(connection: Connection, branch: bool) -> None:
+    def ping_connection(connection, branch):
         if branch:
             # 'branch' refers to a sub-connection of a connection,
             # we don't want to bother pinging on these.
@@ -664,14 +667,7 @@ class QueryStatus:
     TIMED_OUT: str = "timed_out"
 
 
-def notify_user_about_perm_udate(
-    granter: User,
-    user: User,
-    role: Role,
-    datasource: "BaseDatasource",
-    tpl_name: str,
-    config: Dict[str, Any],
-) -> None:
+def notify_user_about_perm_udate(granter, user, role, datasource, tpl_name, config):
     msg = render_template(
         tpl_name, granter=granter, user=user, role=role, datasource=datasource
     )
@@ -763,13 +759,7 @@ def send_email_smtp(
     send_MIME_email(smtp_mail_from, recipients, msg, config, dryrun=dryrun)
 
 
-def send_MIME_email(
-    e_from: str,
-    e_to: List[str],
-    mime_msg: MIMEMultipart,
-    config: Dict[str, Any],
-    dryrun: bool = False,
-) -> None:
+def send_MIME_email(e_from, e_to, mime_msg, config, dryrun=False):
     SMTP_HOST = config["SMTP_HOST"]
     SMTP_PORT = config["SMTP_PORT"]
     SMTP_USER = config["SMTP_USER"]
@@ -802,12 +792,12 @@ def get_email_address_list(address_string: str) -> List[str]:
     return [x.strip() for x in address_string_list if x.strip()]
 
 
-def choicify(values: Iterable[Any]) -> List[Tuple[Any, Any]]:
+def choicify(values):
     """Takes an iterable and makes an iterable of tuples with it"""
     return [(v, v) for v in values]
 
 
-def zlib_compress(data: Union[bytes, str]) -> bytes:
+def zlib_compress(data):
     """
     Compress things in a py2/3 safe fashion
     >>> json_str = '{"test": 1}'
@@ -834,9 +824,7 @@ def zlib_decompress(blob: bytes, decode: Optional[bool] = True) -> Union[bytes, 
     return decompressed.decode("utf-8") if decode else decompressed
 
 
-def to_adhoc(
-    filt: Dict[str, Any], expressionType: str = "SIMPLE", clause: str = "where"
-) -> Dict[str, Any]:
+def to_adhoc(filt, expressionType="SIMPLE", clause="where"):
     result = {
         "clause": clause.upper(),
         "expressionType": expressionType,
@@ -858,7 +846,7 @@ def to_adhoc(
     return result
 
 
-def merge_extra_filters(form_data: Dict[str, Any]) -> None:
+def merge_extra_filters(form_data: dict):
     # extra_filters are temporary/contextual filters (using the legacy constructs)
     # that are external to the slice definition. We use those for dynamic
     # interactive filters like the ones emitted by the "Filter Box" visualization.
@@ -881,7 +869,7 @@ def merge_extra_filters(form_data: Dict[str, Any]) -> None:
         }
         # Grab list of existing filters 'keyed' on the column and operator
 
-        def get_filter_key(f: Dict[str, Any]) -> str:
+        def get_filter_key(f):
             if "expressionType" in f:
                 return "{}__{}".format(f["subject"], f["operator"])
             else:
@@ -954,9 +942,7 @@ def user_label(user: User) -> Optional[str]:
     return None
 
 
-def get_or_create_db(
-    database_name: str, sqlalchemy_uri: str, *args: Any, **kwargs: Any
-) -> "Database":
+def get_or_create_db(database_name, sqlalchemy_uri, *args, **kwargs):
     from superset import db
     from superset.models import core as models
 
@@ -981,7 +967,7 @@ def get_example_database() -> "Database":
     return get_or_create_db("examples", db_uri)
 
 
-def is_adhoc_metric(metric: Metric) -> bool:
+def is_adhoc_metric(metric) -> bool:
     return bool(
         isinstance(metric, dict)
         and (
@@ -999,15 +985,15 @@ def is_adhoc_metric(metric: Metric) -> bool:
     )
 
 
-def get_metric_name(metric: Metric) -> str:
-    return metric["label"] if is_adhoc_metric(metric) else metric  # type: ignore
+def get_metric_name(metric):
+    return metric["label"] if is_adhoc_metric(metric) else metric
 
 
-def get_metric_names(metrics: Sequence[Metric]) -> List[str]:
+def get_metric_names(metrics):
     return [get_metric_name(metric) for metric in metrics]
 
 
-def ensure_path_exists(path: str) -> None:
+def ensure_path_exists(path: str):
     try:
         os.makedirs(path)
     except OSError as exc:
@@ -1130,7 +1116,7 @@ def add_ago_to_since(since: str) -> str:
     return since
 
 
-def convert_legacy_filters_into_adhoc(fd: FormData) -> None:
+def convert_legacy_filters_into_adhoc(fd):
     mapping = {"having": "having_filters", "where": "filters"}
 
     if not fd.get("adhoc_filters"):
@@ -1149,7 +1135,7 @@ def convert_legacy_filters_into_adhoc(fd: FormData) -> None:
             del fd[key]
 
 
-def split_adhoc_filters_into_base_filters(fd: FormData) -> None:
+def split_adhoc_filters_into_base_filters(fd):
     """
     Mutates form data to restructure the adhoc filters in the form of the four base
     filters, `where`, `having`, `filters`, and `having_filters` which represent
@@ -1241,7 +1227,7 @@ def create_ssl_cert_file(certificate: str) -> str:
     return path
 
 
-def time_function(func: Callable, *args: Any, **kwargs: Any) -> Tuple[float, Any]:
+def time_function(func: Callable, *args, **kwargs) -> Tuple[float, Any]:
     """
     Measures the amount of time a function takes to execute in ms
 
@@ -1307,7 +1293,7 @@ def split(
     yield s[i:]
 
 
-def get_iterable(x: Any) -> List[Any]:
+def get_iterable(x: Any) -> List:
     """
     Get an iterable (list) representation of the object.
 
@@ -1381,22 +1367,3 @@ class FilterOperator(str, Enum):
     IN = "IN"
     NOT_IN = "NOT IN"
     REGEX = "REGEX"
-
-
-class ChartDataResponseType(str, Enum):
-    """
-    Chart data response type
-    """
-
-    QUERY = "query"
-    RESULTS = "results"
-    SAMPLES = "samples"
-
-
-class ChartDataResponseFormat(str, Enum):
-    """
-    Chart data response format
-    """
-
-    CSV = "csv"
-    JSON = "json"

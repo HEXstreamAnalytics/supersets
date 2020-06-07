@@ -76,5 +76,3 @@ CELERY_CONFIG = CeleryConfig
 CUSTOM_TEMPLATE_PROCESSORS = {
     CustomPrestoTemplateProcessor.engine: CustomPrestoTemplateProcessor
 }
-
-PRESERVE_CONTEXT_ON_EXCEPTION = False

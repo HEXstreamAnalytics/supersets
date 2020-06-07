@@ -24,7 +24,6 @@ from superset import app, db
 from superset.connectors.connector_registry import ConnectorRegistry
 from superset.constants import RouteMethod
 from superset.models.slice import Slice
-from superset.typing import FlaskResponse
 from superset.utils import core as utils
 from superset.views.base import check_ownership, DeleteMixin, SupersetModelView
 from superset.views.chart.mixin import SliceMixin
@@ -41,22 +40,22 @@ class SliceModelView(
         RouteMethod.API_DELETE,
     }
 
-    def pre_add(self, item: "SliceModelView") -> None:
+    def pre_add(self, item):
         utils.validate_json(item.params)
 
-    def pre_update(self, item: "SliceModelView") -> None:
+    def pre_update(self, item):
         utils.validate_json(item.params)
         check_ownership(item)
 
-    def pre_delete(self, item: "SliceModelView") -> None:
+    def pre_delete(self, item):
         check_ownership(item)
 
     @expose("/add", methods=["GET", "POST"])
     @has_access
-    def add(self) -> FlaskResponse:
+    def add(self):
+        datasources = ConnectorRegistry.get_all_datasources(db.session)
         datasources = [
-            {"value": str(d.id) + "__" + d.type, "label": repr(d)}
-            for d in ConnectorRegistry.get_all_datasources(db.session)
+            {"value": str(d.id) + "__" + d.type, "label": repr(d)} for d in datasources
         ]
         return self.render_template(
             "superset/add_slice.html",
@@ -67,7 +66,7 @@ class SliceModelView(
 
     @expose("/list/")
     @has_access
-    def list(self) -> FlaskResponse:
+    def list(self):
         if not app.config["ENABLE_REACT_CRUD_VIEWS"]:
             return super().list()
 

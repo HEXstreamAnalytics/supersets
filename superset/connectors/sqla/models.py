@@ -18,7 +18,7 @@
 import logging
 import re
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, Hashable, List, NamedTuple, Optional, Tuple, Union
 
 import pandas as pd
@@ -54,15 +54,10 @@ from superset.connectors.base.models import BaseColumn, BaseDatasource, BaseMetr
 from superset.constants import NULL_STRING
 from superset.db_engine_specs.base import TimestampExpression
 from superset.exceptions import DatabaseNotFound
-from superset.jinja_context import (
-    BaseTemplateProcessor,
-    ExtraCache,
-    get_template_processor,
-)
+from superset.jinja_context import ExtraCache, get_template_processor
 from superset.models.annotations import Annotation
 from superset.models.core import Database
 from superset.models.helpers import AuditMixinNullable, QueryResult
-from superset.typing import Metric, QueryObjectDict
 from superset.utils import core as utils, import_datasource
 
 config = app.config
@@ -90,9 +85,8 @@ class AnnotationDatasource(BaseDatasource):
 
     cache_timeout = 0
     changed_on = None
-    type = "annotation"
 
-    def query(self, query_obj: QueryObjectDict) -> QueryResult:
+    def query(self, query_obj: Dict[str, Any]) -> QueryResult:
         error_message = None
         qry = db.session.query(Annotation)
         qry = qry.filter(Annotation.layer_id == query_obj["filter"][0]["val"])
@@ -109,17 +103,13 @@ class AnnotationDatasource(BaseDatasource):
             logger.exception(ex)
             error_message = utils.error_msg_from_exception(ex)
         return QueryResult(
-            status=status,
-            df=df,
-            duration=timedelta(0),
-            query="",
-            error_message=error_message,
+            status=status, df=df, duration=0, query="", error_message=error_message
         )
 
-    def get_query_str(self, query_obj: QueryObjectDict) -> str:
+    def get_query_str(self, query_obj):
         raise NotImplementedError()
 
-    def values_for_column(self, column_name: str, limit: int = 10000) -> List[Any]:
+    def values_for_column(self, column_name, limit=10000):
         raise NotImplementedError()
 
 
@@ -245,8 +235,8 @@ class TableColumn(Model, BaseColumn):
         return self.table.make_sqla_column_compatible(time_expr, label)
 
     @classmethod
-    def import_obj(cls, i_column: "TableColumn") -> "TableColumn":
-        def lookup_obj(lookup_column: TableColumn) -> TableColumn:
+    def import_obj(cls, i_column):
+        def lookup_obj(lookup_column):
             return (
                 db.session.query(TableColumn)
                 .filter(
@@ -349,8 +339,8 @@ class SqlMetric(Model, BaseMetric):
         return self.perm
 
     @classmethod
-    def import_obj(cls, i_metric: "SqlMetric") -> "SqlMetric":
-        def lookup_obj(lookup_metric: SqlMetric) -> SqlMetric:
+    def import_obj(cls, i_metric):
+        def lookup_obj(lookup_metric):
             return (
                 db.session.query(SqlMetric)
                 .filter(
@@ -448,7 +438,7 @@ class SqlaTable(Model, BaseDatasource):
         sqla_col._df_label_expected = label_expected
         return sqla_col
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return self.name
 
     @property
@@ -527,14 +517,14 @@ class SqlaTable(Model, BaseDatasource):
         )
 
     @property
-    def dttm_cols(self) -> List[str]:
+    def dttm_cols(self) -> List:
         l = [c.column_name for c in self.columns if c.is_dttm]
         if self.main_dttm_col and self.main_dttm_col not in l:
             l.append(self.main_dttm_col)
         return l
 
     @property
-    def num_cols(self) -> List[str]:
+    def num_cols(self) -> List:
         return [c.column_name for c in self.columns if c.is_numeric]
 
     @property
@@ -556,7 +546,7 @@ class SqlaTable(Model, BaseDatasource):
     def sql_url(self) -> str:
         return self.database.sql_url + "?table_name=" + str(self.table_name)
 
-    def external_metadata(self) -> List[Dict[str, str]]:
+    def external_metadata(self):
         cols = self.database.get_columns(self.table_name, schema=self.schema)
         for col in cols:
             try:
@@ -573,7 +563,7 @@ class SqlaTable(Model, BaseDatasource):
         }
 
     @property
-    def select_star(self) -> Optional[str]:
+    def select_star(self) -> str:
         # show_cols and latest_partition set to false to avoid
         # the expensive cost of inspecting the DB
         return self.database.select_star(
@@ -595,7 +585,7 @@ class SqlaTable(Model, BaseDatasource):
             d["is_sqllab_view"] = self.is_sqllab_view
         return d
 
-    def values_for_column(self, column_name: str, limit: int = 10000) -> List[Any]:
+    def values_for_column(self, column_name: str, limit: int = 10000) -> List:
         """Runs query against sqla to retrieve some
         sample values for the given column.
         """
@@ -632,10 +622,10 @@ class SqlaTable(Model, BaseDatasource):
             sql = SQL_QUERY_MUTATOR(sql, username, security_manager, self.database)
         return sql
 
-    def get_template_processor(self, **kwargs: Any) -> BaseTemplateProcessor:
+    def get_template_processor(self, **kwargs):
         return get_template_processor(table=self, database=self.database, **kwargs)
 
-    def get_query_str_extended(self, query_obj: QueryObjectDict) -> QueryStringExtended:
+    def get_query_str_extended(self, query_obj: Dict[str, Any]) -> QueryStringExtended:
         sqlaq = self.get_sqla_query(**query_obj)
         sql = self.database.compile_sqla_query(sqlaq.sqla_query)
         logger.info(sql)
@@ -645,20 +635,18 @@ class SqlaTable(Model, BaseDatasource):
             labels_expected=sqlaq.labels_expected, sql=sql, prequeries=sqlaq.prequeries
         )
 
-    def get_query_str(self, query_obj: QueryObjectDict) -> str:
+    def get_query_str(self, query_obj: Dict[str, Any]) -> str:
         query_str_ext = self.get_query_str_extended(query_obj)
         all_queries = query_str_ext.prequeries + [query_str_ext.sql]
         return ";\n\n".join(all_queries) + ";"
 
-    def get_sqla_table(self) -> table:
+    def get_sqla_table(self):
         tbl = table(self.table_name)
         if self.schema:
             tbl.schema = self.schema
         return tbl
 
-    def get_from_clause(
-        self, template_processor: Optional[BaseTemplateProcessor] = None
-    ) -> Union[table, TextAsFrom]:
+    def get_from_clause(self, template_processor=None):
         # Supporting arbitrary SQL statements in place of tables
         if self.sql:
             from_sql = self.sql
@@ -695,9 +683,7 @@ class SqlaTable(Model, BaseDatasource):
 
         return self.make_sqla_column_compatible(sqla_metric, label)
 
-    def _get_sqla_row_level_filters(
-        self, template_processor: BaseTemplateProcessor
-    ) -> List[str]:
+    def _get_sqla_row_level_filters(self, template_processor) -> List[str]:
         """
         Return the appropriate row level security filters for this table and the current user.
 
@@ -712,22 +698,22 @@ class SqlaTable(Model, BaseDatasource):
 
     def get_sqla_query(  # sqla
         self,
-        metrics: List[Metric],
-        granularity: str,
-        from_dttm: datetime,
-        to_dttm: datetime,
-        columns: Optional[List[str]] = None,
-        groupby: Optional[List[str]] = None,
-        filter: Optional[List[Dict[str, Any]]] = None,
-        is_timeseries: bool = True,
-        timeseries_limit: int = 15,
-        timeseries_limit_metric: Optional[Metric] = None,
-        row_limit: Optional[int] = None,
-        inner_from_dttm: Optional[datetime] = None,
-        inner_to_dttm: Optional[datetime] = None,
-        orderby: Optional[List[Tuple[ColumnElement, bool]]] = None,
-        extras: Optional[Dict[str, Any]] = None,
-        order_desc: bool = True,
+        metrics,
+        granularity,
+        from_dttm,
+        to_dttm,
+        columns=None,
+        groupby=None,
+        filter=None,
+        is_timeseries=True,
+        timeseries_limit=15,
+        timeseries_limit_metric=None,
+        row_limit=None,
+        inner_from_dttm=None,
+        inner_to_dttm=None,
+        orderby=None,
+        extras=None,
+        order_desc=True,
     ) -> SqlaQuery:
         """Querying any sqla table from this common interface"""
         template_kwargs = {
@@ -775,9 +761,8 @@ class SqlaTable(Model, BaseDatasource):
         metrics_exprs: List[ColumnElement] = []
         for m in metrics:
             if utils.is_adhoc_metric(m):
-                assert isinstance(m, dict)
                 metrics_exprs.append(self.adhoc_metric_to_sqla(m, cols))
-            elif isinstance(m, str) and m in metrics_dict:
+            elif m in metrics_dict:
                 metrics_exprs.append(metrics_dict[m].get_sqla_col())
             else:
                 raise Exception(_("Metric '%(metric)s' does not exist", metric=m))
@@ -792,9 +777,7 @@ class SqlaTable(Model, BaseDatasource):
 
         if (is_sip_38 and metrics and columns) or (not is_sip_38 and groupby):
             # dedup columns while preserving order
-            columns_ = columns if is_sip_38 else groupby
-            assert columns_
-            groupby = list(dict.fromkeys(columns_))
+            groupby = list(dict.fromkeys(columns if is_sip_38 else groupby))
 
             select_exprs = []
             for s in groupby:
@@ -815,7 +798,6 @@ class SqlaTable(Model, BaseDatasource):
                 )
             metrics_exprs = []
 
-        assert extras is not None
         time_range_endpoints = extras.get("time_range_endpoints")
         groupby_exprs_with_timestamp = OrderedDict(groupby_exprs_sans_timestamp.items())
         if granularity:
@@ -859,8 +841,7 @@ class SqlaTable(Model, BaseDatasource):
 
         where_clause_and = []
         having_clause_and: List = []
-
-        for flt in filter:  # type: ignore
+        for flt in filter:
             if not all([flt.get(s) for s in ["col", "op"]]):
                 continue
             col = flt["col"]
@@ -1044,20 +1025,12 @@ class SqlaTable(Model, BaseDatasource):
             prequeries=prequeries,
         )
 
-    def _get_timeseries_orderby(
-        self,
-        timeseries_limit_metric: Metric,
-        metrics_dict: Dict[str, SqlMetric],
-        cols: Dict[str, Column],
-    ) -> Optional[Column]:
+    def _get_timeseries_orderby(self, timeseries_limit_metric, metrics_dict, cols):
         if utils.is_adhoc_metric(timeseries_limit_metric):
-            assert isinstance(timeseries_limit_metric, dict)
             ob = self.adhoc_metric_to_sqla(timeseries_limit_metric, cols)
-        elif (
-            isinstance(timeseries_limit_metric, str)
-            and timeseries_limit_metric in metrics_dict
-        ):
-            ob = metrics_dict[timeseries_limit_metric].get_sqla_col()
+        elif timeseries_limit_metric in metrics_dict:
+            timeseries_limit_metric = metrics_dict.get(timeseries_limit_metric)
+            ob = timeseries_limit_metric.get_sqla_col()
         else:
             raise Exception(
                 _("Metric '%(metric)s' does not exist", metric=timeseries_limit_metric)
@@ -1077,7 +1050,7 @@ class SqlaTable(Model, BaseDatasource):
 
         return or_(*groups)
 
-    def query(self, query_obj: QueryObjectDict) -> QueryResult:
+    def query(self, query_obj: Dict[str, Any]) -> QueryResult:
         qry_start_dttm = datetime.now()
         query_str_ext = self.get_query_str_extended(query_obj)
         sql = query_str_ext.sql
@@ -1109,7 +1082,7 @@ class SqlaTable(Model, BaseDatasource):
         except Exception as ex:
             df = pd.DataFrame()
             status = utils.QueryStatus.FAILED
-            logger.warning(f"Query {sql} on schema {self.schema} failed", exc_info=True)
+            logger.exception(f"Query {sql} on schema {self.schema} failed")
             db_engine_spec = self.database.db_engine_spec
             errors = db_engine_spec.extract_errors(ex)
 
@@ -1124,7 +1097,7 @@ class SqlaTable(Model, BaseDatasource):
     def get_sqla_table_object(self) -> Table:
         return self.database.get_table(self.table_name, schema=self.schema)
 
-    def fetch_metadata(self, commit: bool = True) -> None:
+    def fetch_metadata(self, commit=True) -> None:
         """Fetches the metadata for the table and merges it in"""
         try:
             table = self.get_sqla_table_object()
@@ -1189,9 +1162,7 @@ class SqlaTable(Model, BaseDatasource):
             db.session.commit()
 
     @classmethod
-    def import_obj(
-        cls, i_datasource: "SqlaTable", import_time: Optional[int] = None
-    ) -> int:
+    def import_obj(cls, i_datasource, import_time=None) -> int:
         """Imports the datasource from the object to the database.
 
          Metrics and columns and datasource will be overrided if exists.
@@ -1199,7 +1170,7 @@ class SqlaTable(Model, BaseDatasource):
          superset instances. Audit metadata isn't copies over.
         """
 
-        def lookup_sqlatable(table: "SqlaTable") -> "SqlaTable":
+        def lookup_sqlatable(table):
             return (
                 db.session.query(SqlaTable)
                 .join(Database)
@@ -1211,7 +1182,7 @@ class SqlaTable(Model, BaseDatasource):
                 .first()
             )
 
-        def lookup_database(table: SqlaTable) -> Database:
+        def lookup_database(table):
             try:
                 return (
                     db.session.query(Database)
@@ -1232,11 +1203,7 @@ class SqlaTable(Model, BaseDatasource):
 
     @classmethod
     def query_datasources_by_name(
-        cls,
-        session: Session,
-        database: Database,
-        datasource_name: str,
-        schema: Optional[str] = None,
+        cls, session: Session, database: Database, datasource_name: str, schema=None
     ) -> List["SqlaTable"]:
         query = (
             session.query(cls)
@@ -1248,10 +1215,10 @@ class SqlaTable(Model, BaseDatasource):
         return query.all()
 
     @staticmethod
-    def default_query(qry: Query) -> Query:
+    def default_query(qry) -> Query:
         return qry.filter_by(is_sqllab_view=False)
 
-    def has_extra_cache_key_calls(self, query_obj: QueryObjectDict) -> bool:
+    def has_extra_cache_key_calls(self, query_obj: Dict[str, Any]) -> bool:
         """
         Detects the presence of calls to `ExtraCache` methods in items in query_obj that
         can be templated. If any are present, the query must be evaluated to extract
@@ -1277,7 +1244,7 @@ class SqlaTable(Model, BaseDatasource):
                 return True
         return False
 
-    def get_extra_cache_keys(self, query_obj: QueryObjectDict) -> List[Hashable]:
+    def get_extra_cache_keys(self, query_obj: Dict[str, Any]) -> List[Hashable]:
         """
         The cache key of a SqlaTable needs to consider any keys added by the parent
         class and any keys added via `ExtraCache`.

@@ -54,6 +54,7 @@ const propTypes = {
 export default function Menu({
   data: { menu, brand, navbar_right: navbarRight },
 }) {
+
   return (
     <header className="top" id="main-menu">
       <Navbar inverse fluid staticTop role="navigation">

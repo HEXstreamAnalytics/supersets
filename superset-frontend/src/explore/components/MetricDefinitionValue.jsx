@@ -43,8 +43,7 @@ export default function MetricDefinitionValue({
 }) {
   if (option.metric_name) {
     return <MetricOption metric={option} />;
-  }
-  if (option instanceof AdhocMetric) {
+  } else if (option instanceof AdhocMetric) {
     return (
       <AdhocMetricOption
         adhocMetric={option}

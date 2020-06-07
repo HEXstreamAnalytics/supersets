@@ -60,6 +60,7 @@ export default () =>
             subject: null,
             operator: null,
             comparator: null,
+            fromFormData: false,
             filterOptionName: 'filter_jbdwe0hayaj_h9jfer8fy58',
           },
           {
@@ -69,6 +70,7 @@ export default () =>
             comparator: 'Energy',
             clause: 'WHERE',
             sqlExpression: null,
+            fromFormData: true,
             filterOptionName: 'filter_8e0otka9uif_vmqri4gmbqc',
           },
         ],

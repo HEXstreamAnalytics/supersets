@@ -18,8 +18,6 @@
  */
 import React from 'react';
 import { hot } from 'react-hot-loader/root';
-import { ThemeProvider } from 'emotion-theming';
-import { supersetTheme } from '@superset-ui/style';
 import setupApp from '../setup/setupApp';
 import setupPlugins from '../setup/setupPlugins';
 import AddSliceContainer from './AddSliceContainer';
@@ -32,10 +30,6 @@ const bootstrapData = JSON.parse(
   addSliceContainer.getAttribute('data-bootstrap'),
 );
 
-const App = () => (
-  <ThemeProvider theme={supersetTheme}>
-    <AddSliceContainer datasources={bootstrapData.datasources} />
-  </ThemeProvider>
-);
+const App = () => <AddSliceContainer datasources={bootstrapData.datasources} />;
 
 export default hot(App);

@@ -20,13 +20,12 @@ import { t } from '@superset-ui/translation';
 
 export const AGGREGATES = {
   AVG: 'AVG',
-  COUNT: 'COUNT',
+  COUNT: 'COUNT ',
   COUNT_DISTINCT: 'COUNT_DISTINCT',
   MAX: 'MAX',
   MIN: 'MIN',
   SUM: 'SUM',
 };
-export const AGGREGATES_OPTIONS = Object.values(AGGREGATES);
 
 export const OPERATORS = {
   '==': '==',
@@ -43,7 +42,6 @@ export const OPERATORS = {
   'IS NULL': 'IS NULL',
   'LATEST PARTITION': 'LATEST PARTITION',
 };
-export const OPERATORS_OPTIONS = Object.values(OPERATORS);
 
 export const TABLE_ONLY_OPERATORS = [OPERATORS.LIKE];
 export const DRUID_ONLY_OPERATORS = [OPERATORS.regex];
@@ -55,10 +53,10 @@ export const HAVING_OPERATORS = [
   OPERATORS['>='],
   OPERATORS['<='],
 ];
-export const MULTI_OPERATORS = new Set([OPERATORS.in, OPERATORS['not in']]);
+export const MULTI_OPERATORS = [OPERATORS.in, OPERATORS['not in']];
 // CUSTOM_OPERATORS will show operator in simple mode,
 // but will generate customized sqlExpression
-export const CUSTOM_OPERATORS = new Set([OPERATORS['LATEST PARTITION']]);
+export const CUSTOM_OPERATORS = [OPERATORS['LATEST PARTITION']];
 // DISABLE_INPUT_OPERATORS will disable filter value input
 // in adhocFilter control
 export const DISABLE_INPUT_OPERATORS = [

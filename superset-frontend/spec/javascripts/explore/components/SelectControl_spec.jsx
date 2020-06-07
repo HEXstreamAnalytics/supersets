@@ -18,10 +18,12 @@
  */
 /* eslint-disable no-unused-expressions */
 import React from 'react';
+import Select, { Creatable } from 'react-select';
+import VirtualizedSelect from 'react-virtualized-select';
 import sinon from 'sinon';
 import { shallow } from 'enzyme';
-import { Select, CreatableSelect } from 'src/components/Select';
-import OnPasteSelect from 'src/components/Select/OnPasteSelect';
+import OnPasteSelect from 'src/components/OnPasteSelect';
+import VirtualizedRendererWrap from 'src/components/VirtualizedRendererWrap';
 import SelectControl from 'src/explore/components/controls/SelectControl';
 
 const defaultProps = {
@@ -45,42 +47,16 @@ describe('SelectControl', () => {
 
   beforeEach(() => {
     wrapper = shallow(<SelectControl {...defaultProps} />);
+    wrapper.setProps(defaultProps);
   });
 
-  it('renders with Select by default', () => {
-    expect(wrapper.find(OnPasteSelect)).toHaveLength(0);
-    expect(wrapper.findWhere(x => x.type() === Select)).toHaveLength(1);
-  });
-
-  it('renders with OnPasteSelect when multi', () => {
-    wrapper.setProps({ multi: true });
+  it('renders an OnPasteSelect', () => {
     expect(wrapper.find(OnPasteSelect)).toHaveLength(1);
-    expect(wrapper.findWhere(x => x.type() === Select)).toHaveLength(0);
   });
 
-  it('renders with Creatable when freeForm', () => {
-    wrapper.setProps({ freeForm: true });
-    expect(wrapper.find(OnPasteSelect)).toHaveLength(0);
-    expect(wrapper.findWhere(x => x.type() === CreatableSelect)).toHaveLength(
-      1,
-    );
-  });
-
-  it('uses Select in onPasteSelect when freeForm=false', () => {
-    wrapper = shallow(<SelectControl {...defaultProps} multi />);
+  it('calls onChange when toggled', () => {
     const select = wrapper.find(OnPasteSelect);
-    expect(select.props().selectWrap).toBe(Select);
-  });
-
-  it('uses Creatable in onPasteSelect when freeForm=true', () => {
-    wrapper = shallow(<SelectControl {...defaultProps} multi freeForm />);
-    const select = wrapper.find(OnPasteSelect);
-    expect(select.props().selectWrap).toBe(CreatableSelect);
-  });
-
-  it('calls props.onChange when select', () => {
-    const select = wrapper.instance();
-    select.onChange({ value: 50 });
+    select.simulate('change', { value: 50 });
     expect(defaultProps.onChange.calledWith(50)).toBe(true);
   });
 
@@ -96,8 +72,34 @@ describe('SelectControl', () => {
       onChange: sinon.spy(),
     };
     wrapper.setProps(selectAllProps);
-    wrapper.instance().onChange([{ meta: true, value: 'Select All' }]);
+    const select = wrapper.find(OnPasteSelect);
+    select.simulate('change', [{ meta: true, value: 'Select All' }]);
     expect(selectAllProps.onChange.calledWith(expectedValues)).toBe(true);
+  });
+
+  it('passes VirtualizedSelect as selectWrap', () => {
+    const select = wrapper.find(OnPasteSelect);
+    expect(select.props().selectWrap).toBe(VirtualizedSelect);
+  });
+
+  it('passes Creatable as selectComponent when freeForm=true', () => {
+    wrapper = shallow(<SelectControl {...defaultProps} freeForm />);
+    const select = wrapper.find(OnPasteSelect);
+    expect(select.props().selectComponent).toBe(Creatable);
+  });
+
+  it('passes Select as selectComponent when freeForm=false', () => {
+    const select = wrapper.find(OnPasteSelect);
+    expect(select.props().selectComponent).toBe(Select);
+  });
+
+  it('wraps optionRenderer in a VirtualizedRendererWrap', () => {
+    const select = wrapper.find(OnPasteSelect);
+    const defaultOptionRenderer = SelectControl.defaultProps.optionRenderer;
+    const wrappedRenderer = VirtualizedRendererWrap(defaultOptionRenderer);
+    expect(typeof select.props().optionRenderer).toBe('function');
+    // different instances of wrapper with same inner renderer are unequal
+    expect(select.props().optionRenderer.name).toBe(wrappedRenderer.name);
   });
 
   describe('getOptions', () => {
@@ -130,18 +132,15 @@ describe('SelectControl', () => {
         value: ['one', 'two'],
         name: 'row_limit',
         label: 'Row Limit',
-        valueKey: 'custom_value_key',
+        valueKey: 'value',
         onChange: sinon.spy(),
       };
-      // the last added option is at the top
-      const expectedNewOptions = [
-        { custom_value_key: 'two', label: 'two' },
-        { custom_value_key: 'one', label: 'one' },
+      const newOptions = [
+        { value: 'one', label: 'one' },
+        { value: 'two', label: 'two' },
       ];
       wrapper.setProps(freeFormProps);
-      expect(wrapper.instance().getOptions(freeFormProps)).toEqual(
-        expectedNewOptions,
-      );
+      expect(wrapper.instance().getOptions(freeFormProps)).toEqual(newOptions);
     });
   });
 

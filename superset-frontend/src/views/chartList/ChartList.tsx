@@ -350,6 +350,7 @@ class ChartList extends React.PureComponent<Props, State> {
       endpoint: `/api/v1/chart/?q=${queryParams}`,
     })
       .then(({ json = {} }) => {
+        console.log('fetch data ------> ', json);
         this.setState({ charts: json.result, chartCount: json.count });
       })
       .catch(e => {
@@ -363,13 +364,10 @@ class ChartList extends React.PureComponent<Props, State> {
       });
   };
 
-  createFetchResource = ({
-    resource,
-    postProcess,
-  }: {
-    resource: string;
-    postProcess?: (value: []) => any[];
-  }) => async () => {
+  createFetchResource = (
+    resource: string,
+    postProcess?: (value: []) => any[],
+  ) => async () => {
     try {
       const { json = {} } = await SupersetClient.get({
         endpoint: resource,
@@ -392,10 +390,10 @@ class ChartList extends React.PureComponent<Props, State> {
 
   updateFilters = async () => {
     const { filterOperators } = this.state;
-    const fetchOwners = this.createFetchResource({
-      resource: '/api/v1/chart/related/owners',
-      postProcess: this.convertOwners,
-    });
+    const fetchOwners = this.createFetchResource(
+      '/api/v1/chart/related/owners',
+      this.convertOwners,
+    );
 
     if (this.isNewUIEnabled) {
       this.setState({
@@ -424,10 +422,10 @@ class ChartList extends React.PureComponent<Props, State> {
             input: 'select',
             operator: 'eq',
             unfilteredLabel: 'All',
-            fetchSelects: this.createFetchResource({
-              resource: '/api/v1/chart/datasources',
-              postProcess: this.stringifyValues,
-            }),
+            fetchSelects: this.createFetchResource(
+              '/api/v1/chart/datasources',
+              this.stringifyValues,
+            ),
           },
           {
             Header: 'Search',

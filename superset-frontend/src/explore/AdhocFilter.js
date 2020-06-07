@@ -48,10 +48,10 @@ const OPERATORS_TO_SQL = {
 
 function translateToSql(adhocMetric, { useSimple } = {}) {
   if (adhocMetric.expressionType === EXPRESSION_TYPES.SIMPLE || useSimple) {
-    const isMulti = MULTI_OPERATORS.has(adhocMetric.operator);
+    const isMulti = MULTI_OPERATORS.indexOf(adhocMetric.operator) >= 0;
     const subject = adhocMetric.subject;
     const operator =
-      adhocMetric.operator && CUSTOM_OPERATORS.has(adhocMetric.operator)
+      adhocMetric.operator && CUSTOM_OPERATORS.includes(adhocMetric.operator)
         ? OPERATORS_TO_SQL[adhocMetric.operator](adhocMetric)
         : OPERATORS_TO_SQL[adhocMetric.operator];
     const comparator = Array.isArray(adhocMetric.comparator)
@@ -81,7 +81,10 @@ export default class AdhocFilter {
           ? adhocFilter.sqlExpression
           : translateToSql(adhocFilter, { useSimple: true });
       this.clause = adhocFilter.clause;
-      if (adhocFilter.operator && CUSTOM_OPERATORS.has(adhocFilter.operator)) {
+      if (
+        adhocFilter.operator &&
+        CUSTOM_OPERATORS.includes(adhocFilter.operator)
+      ) {
         this.subject = adhocFilter.subject;
         this.operator = adhocFilter.operator;
       } else {
@@ -91,7 +94,7 @@ export default class AdhocFilter {
       this.comparator = null;
     }
     this.isExtra = !!adhocFilter.isExtra;
-    this.isNew = !!adhocFilter.isNew;
+    this.fromFormData = !!adhocFilter.filterOptionName;
 
     this.filterOptionName =
       adhocFilter.filterOptionName ||
@@ -103,8 +106,13 @@ export default class AdhocFilter {
   duplicateWith(nextFields) {
     return new AdhocFilter({
       ...this,
-      // all duplicated fields are not new (i.e. will not open popup automatically)
-      isNew: false,
+      expressionType: this.expressionType,
+      subject: this.subject,
+      operator: this.operator,
+      clause: this.clause,
+      sqlExpression: this.sqlExpression,
+      fromFormData: this.fromFormData,
+      filterOptionName: this.filterOptionName,
       ...nextFields,
     });
   }

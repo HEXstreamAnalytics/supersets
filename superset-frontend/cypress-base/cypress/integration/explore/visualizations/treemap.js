@@ -70,6 +70,7 @@ export default () =>
             comparator: 'South Asia',
             clause: 'WHERE',
             sqlExpression: null,
+            fromFormData: true,
             filterOptionName: 'filter_8aqxcf5co1a_x7lm2d1fq0l',
           },
         ],

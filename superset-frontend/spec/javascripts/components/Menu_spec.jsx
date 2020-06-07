@@ -73,7 +73,7 @@ const defaultProps = {
     ],
     brand: {
       path: '/superset/profile/admin/',
-      icon: '/static/assets/images/Utility360_logo.svg',
+      icon: '/static/assets/images/superset-logo@2x.png',
       alt: 'Superset',
       width: '126',
     },

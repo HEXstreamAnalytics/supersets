@@ -18,7 +18,6 @@
 """Views used by the SqlAlchemy connector"""
 import logging
 import re
-from typing import List, Union
 
 from flask import flash, Markup, redirect
 from flask_appbuilder import CompactCRUDMixin, expose
@@ -33,7 +32,6 @@ from wtforms.validators import Regexp
 from superset import app, db, security_manager
 from superset.connectors.base.views import DatasourceModelView
 from superset.constants import RouteMethod
-from superset.typing import FlaskResponse
 from superset.utils import core as utils
 from superset.views.base import (
     create_table_permissions,
@@ -377,10 +375,10 @@ class TableModelView(DatasourceModelView, DeleteMixin, YamlExportMixin):
         )
     }
 
-    def pre_add(self, table: "TableModelView") -> None:
+    def pre_add(self, table):
         validate_sqlatable(table)
 
-    def post_add(self, table: "TableModelView", flash_message: bool = True) -> None:
+    def post_add(self, table, flash_message=True):
         table.fetch_metadata()
         create_table_permissions(table)
         if flash_message:
@@ -394,15 +392,15 @@ class TableModelView(DatasourceModelView, DeleteMixin, YamlExportMixin):
                 "info",
             )
 
-    def post_update(self, table: "TableModelView") -> None:
+    def post_update(self, table):
         self.post_add(table, flash_message=False)
 
-    def _delete(self, pk: int) -> None:
+    def _delete(self, pk):
         DeleteMixin._delete(self, pk)
 
     @expose("/edit/<pk>", methods=["GET", "POST"])
     @has_access
-    def edit(self, pk: int) -> FlaskResponse:
+    def edit(self, pk):
         """Simple hack to redirect to explore view after saving"""
         resp = super(TableModelView, self).edit(pk)
         if isinstance(resp, str):
@@ -412,9 +410,7 @@ class TableModelView(DatasourceModelView, DeleteMixin, YamlExportMixin):
     @action(
         "refresh", __("Refresh Metadata"), __("Refresh column metadata"), "fa-refresh"
     )
-    def refresh(
-        self, tables: Union["TableModelView", List["TableModelView"]]
-    ) -> FlaskResponse:
+    def refresh(self, tables):
         if not isinstance(tables, list):
             tables = [tables]
         successes = []
@@ -443,7 +439,7 @@ class TableModelView(DatasourceModelView, DeleteMixin, YamlExportMixin):
 
     @expose("/list/")
     @has_access
-    def list(self) -> FlaskResponse:
+    def list(self):
         if not app.config["ENABLE_REACT_CRUD_VIEWS"]:
             return super().list()
 

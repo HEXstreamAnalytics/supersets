@@ -23,7 +23,7 @@ export interface SortColumn {
 
 export type SortColumns = SortColumn[];
 
-export interface SelectOption {
+export interface Select {
   label: string;
   value: any;
 }
@@ -31,13 +31,13 @@ export interface SelectOption {
 export interface Filter {
   Header: string;
   id: string;
-  operators?: SelectOption[];
+  operators?: Select[];
   operator?: string;
   input?: 'text' | 'textarea' | 'select' | 'checkbox' | 'search';
   unfilteredLabel?: string;
-  selects?: SelectOption[];
+  selects?: Select[];
   onFilterOpen?: () => void;
-  fetchSelects?: () => Promise<SelectOption[]>;
+  fetchSelects?: () => Promise<Select[]>;
 }
 
 export type Filters = Filter[];

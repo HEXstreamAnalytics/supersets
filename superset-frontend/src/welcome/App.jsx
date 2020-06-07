@@ -33,6 +33,7 @@ import FlashProvider from 'src/components/FlashProvider';
 import DashboardList from 'src/views/dashboardList/DashboardList';
 import ChartList from 'src/views/chartList/ChartList';
 import DatasetList from 'src/views/datasetList/DatasetList';
+import { FolderView } from 'src/components/HEXstream';
 
 import messageToastReducer from '../messageToasts/reducers';
 import { initEnhancer } from '../reduxUtils';
@@ -47,7 +48,14 @@ setupPlugins();
 const container = document.getElementById('app');
 const bootstrap = JSON.parse(container.getAttribute('data-bootstrap'));
 const user = { ...bootstrap.user };
-const menu = { ...bootstrap.common.menu_data };
+let menu = { ...bootstrap.common.menu_data };
+// menu.menu.push({
+//   name: "FolderView",
+//   icon: "fa-bar-chart",
+//   label: "FolderView",
+//   url: "/folderview/list/"
+// });
+ 
 const common = { ...bootstrap.common };
 initFeatureFlags(bootstrap.common.feature_flags);
 
@@ -82,6 +90,13 @@ const App = () => (
                   <ChartList user={user} />
                 </ErrorBoundary>
               </Route>
+
+              <Route path="/folderview/list/">
+                <ErrorBoundary>
+                  <FolderView user={user} />
+                </ErrorBoundary>
+              </Route>
+
               <Route path="/tablemodelview/list/">
                 <ErrorBoundary>
                   <DatasetList user={user} />

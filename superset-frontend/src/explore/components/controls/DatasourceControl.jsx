@@ -30,8 +30,9 @@ import {
   Well,
 } from 'react-bootstrap';
 import { t } from '@superset-ui/translation';
-import { ColumnOption } from '@superset-ui/control-utils';
+
 import ControlHeader from '../ControlHeader';
+import ColumnOption from '../../../components/ColumnOption';
 import MetricOption from '../../../components/MetricOption';
 import DatasourceModal from '../../../datasource/DatasourceModal';
 import ChangeDatasourceModal from '../../../datasource/ChangeDatasourceModal';

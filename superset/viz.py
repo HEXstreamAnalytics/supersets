@@ -637,6 +637,12 @@ class TableViz(BaseViz):
             utils.get_metric_names(self.form_data.get("metrics") or [])
         )
 
+        timeseries_limit_metric = utils.get_metric_name(
+            self.form_data.get("timeseries_limit_metric")
+        )
+        if timeseries_limit_metric:
+            non_percent_metric_columns.append(timeseries_limit_metric)
+
         percent_metric_columns = utils.get_metric_names(
             self.form_data.get("percent_metrics") or []
         )
@@ -1049,9 +1055,9 @@ class BubbleViz(NVD3Viz):
         # dedup groupby if it happens to be the same
         d["groupby"] = list(dict.fromkeys(d["groupby"]))
 
-        self.x_metric = form_data["x"]
-        self.y_metric = form_data["y"]
-        self.z_metric = form_data["size"]
+        self.x_metric = form_data.get("x")
+        self.y_metric = form_data.get("y")
+        self.z_metric = form_data.get("size")
         self.entity = form_data.get("entity")
         self.series = form_data.get("series") or self.entity
         d["row_limit"] = form_data.get("limit")
@@ -1093,7 +1099,7 @@ class BulletViz(NVD3Viz):
     def query_obj(self):
         form_data = self.form_data
         d = super().query_obj()
-        self.metric = form_data["metric"]
+        self.metric = form_data.get("metric")
 
         d["metrics"] = [self.metric]
         if not self.metric:
@@ -1451,8 +1457,8 @@ class NVD3DualLineViz(NVD3Viz):
                 _("Pick a time granularity for your time series")
             )
 
-        metric = utils.get_metric_name(fd["metric"])
-        metric_2 = utils.get_metric_name(fd["metric_2"])
+        metric = utils.get_metric_name(fd.get("metric"))
+        metric_2 = utils.get_metric_name(fd.get("metric_2"))
         df = df.pivot_table(index=DTTM_ALIAS, values=[metric, metric_2])
 
         chart_data = self.to_series(df)
@@ -1507,7 +1513,7 @@ class NVD3TimePivotViz(NVD3TimeSeriesViz):
         df = df.pivot_table(
             index=DTTM_ALIAS,
             columns="series",
-            values=utils.get_metric_name(fd["metric"]),
+            values=utils.get_metric_name(fd.get("metric")),
         )
         chart_data = self.to_series(df)
         for serie in chart_data:
@@ -1690,12 +1696,8 @@ class SunburstViz(BaseViz):
         fd = self.form_data
         cols = fd.get("groupby") or []
         cols.extend(["m1", "m2"])
-        metric = utils.get_metric_name(fd["metric"])
-        secondary_metric = (
-            utils.get_metric_name(fd["secondary_metric"])
-            if "secondary_metric" in fd
-            else None
-        )
+        metric = utils.get_metric_name(fd.get("metric"))
+        secondary_metric = utils.get_metric_name(fd.get("secondary_metric"))
         if metric == secondary_metric or secondary_metric is None:
             df.rename(columns={df.columns[-1]: "m1"}, inplace=True)
             df["m2"] = df["m1"]
@@ -1876,12 +1878,8 @@ class WorldMapViz(BaseViz):
 
         fd = self.form_data
         cols = [fd.get("entity")]
-        metric = utils.get_metric_name(fd["metric"])
-        secondary_metric = (
-            utils.get_metric_name(fd["secondary_metric"])
-            if "secondary_metric" in fd
-            else None
-        )
+        metric = utils.get_metric_name(fd.get("metric"))
+        secondary_metric = utils.get_metric_name(fd.get("secondary_metric"))
         columns = ["country", "m1", "m2"]
         if metric == secondary_metric:
             ndf = df[cols]

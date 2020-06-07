@@ -17,14 +17,11 @@
 import logging
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Callable, Iterator
 
 from contextlib2 import contextmanager
 from flask import request
-from werkzeug.wrappers.etag import ETagResponseMixin
 
 from superset import app, cache
-from superset.stats_logger import BaseStatsLogger
 from superset.utils.dates import now_as_float
 
 # If a user sets `max_age` to 0, for long the browser should cache the
@@ -35,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def stats_timing(stats_key: str, stats_logger: BaseStatsLogger) -> Iterator[float]:
+def stats_timing(stats_key, stats_logger):
     """Provide a transactional scope around a series of operations."""
     start_ts = now_as_float()
     try:
@@ -46,7 +43,7 @@ def stats_timing(stats_key: str, stats_logger: BaseStatsLogger) -> Iterator[floa
         stats_logger.timing(stats_key, now_as_float() - start_ts)
 
 
-def etag_cache(max_age: int, check_perms: Callable) -> Callable:
+def etag_cache(max_age, check_perms=bool):
     """
     A decorator for caching views and handling etag conditional requests.
 
@@ -60,9 +57,9 @@ def etag_cache(max_age: int, check_perms: Callable) -> Callable:
 
     """
 
-    def decorator(f: Callable) -> Callable:
+    def decorator(f):
         @wraps(f)
-        def wrapper(*args: Any, **kwargs: Any) -> ETagResponseMixin:
+        def wrapper(*args, **kwargs):
             # check if the user can access the resource
             check_perms(*args, **kwargs)
 
@@ -80,9 +77,7 @@ def etag_cache(max_age: int, check_perms: Callable) -> Callable:
                     key_args = list(args)
                     key_kwargs = kwargs.copy()
                     key_kwargs.update(request.args)
-                    cache_key = wrapper.make_cache_key(  # type: ignore
-                        f, *key_args, **key_kwargs
-                    )
+                    cache_key = wrapper.make_cache_key(f, *key_args, **key_kwargs)
                     response = cache.get(cache_key)
                 except Exception:  # pylint: disable=broad-except
                     if app.debug:
@@ -114,9 +109,9 @@ def etag_cache(max_age: int, check_perms: Callable) -> Callable:
             return response.make_conditional(request)
 
         if cache:
-            wrapper.uncached = f  # type: ignore
-            wrapper.cache_timeout = max_age  # type: ignore
-            wrapper.make_cache_key = cache._memoize_make_cache_key(  # type: ignore # pylint: disable=protected-access
+            wrapper.uncached = f
+            wrapper.cache_timeout = max_age
+            wrapper.make_cache_key = cache._memoize_make_cache_key(  # pylint: disable=protected-access
                 make_name=None, timeout=max_age
             )
 

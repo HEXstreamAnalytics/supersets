@@ -135,9 +135,9 @@ if (!isDevMode) {
   plugins.push(new OptimizeCSSAssetsPlugin());
 }
 
-const PREAMBLE = [path.join(APP_DIR, '/src/preamble.ts')];
+const PREAMBLE = [path.join(APP_DIR, '/src/preamble.js')];
 if (isDevMode) {
-  // A Superset webpage normally includes two JS bundles in dev, `theme.ts` and
+  // A Superset webpage normally includes two JS bundles in dev, `theme.js` and
   // the main entrypoint. Only the main entry should have the dev server client,
   // otherwise the websocket client will initialize twice, creating two sockets.
   // Ref: https://github.com/gaearon/react-hot-loader/issues/141
@@ -175,7 +175,7 @@ const config = {
     fs: 'empty',
   },
   entry: {
-    theme: path.join(APP_DIR, '/src/theme.ts'),
+    theme: path.join(APP_DIR, '/src/theme.js'),
     preamble: PREAMBLE,
     addSlice: addPreamble('/src/addSlice/index.jsx'),
     explore: addPreamble('/src/explore/index.jsx'),

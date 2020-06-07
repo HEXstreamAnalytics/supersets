@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Contains the logic to create cohesive forms on the explore view"""
-from typing import List
-
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext as _
@@ -27,25 +25,25 @@ from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from superset import app, db, security_manager
 from superset.forms import CommaSeparatedListField, filter_not_empty_values
-from superset.models.core import Database
+from superset.models import core as models
 
 config = app.config
 
 
 class CsvToDatabaseForm(DynamicForm):
     # pylint: disable=E0211
-    def csv_allowed_dbs() -> List[Database]:  # type: ignore
+    def csv_allowed_dbs():  # type: ignore
+        csv_allowed_dbs = []
         csv_enabled_dbs = (
-            db.session.query(Database).filter_by(allow_csv_upload=True).all()
+            db.session.query(models.Database).filter_by(allow_csv_upload=True).all()
         )
-        return [
-            csv_enabled_db
-            for csv_enabled_db in csv_enabled_dbs
-            if CsvToDatabaseForm.at_least_one_schema_is_allowed(csv_enabled_db)
-        ]
+        for csv_enabled_db in csv_enabled_dbs:
+            if CsvToDatabaseForm.at_least_one_schema_is_allowed(csv_enabled_db):
+                csv_allowed_dbs.append(csv_enabled_db)
+        return csv_allowed_dbs
 
     @staticmethod
-    def at_least_one_schema_is_allowed(database: Database) -> bool:
+    def at_least_one_schema_is_allowed(database):
         """
         If the user has access to the database or all datasource
             1. if schemas_allowed_for_csv_upload is empty

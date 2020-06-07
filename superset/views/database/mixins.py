@@ -22,7 +22,6 @@ from sqlalchemy import MetaData
 
 from superset import app, security_manager
 from superset.exceptions import SupersetException
-from superset.models.core import Database
 from superset.security.analytics_db_safety import check_sqlalchemy_uri
 from superset.utils import core as utils
 from superset.views.database.filters import DatabaseFilter
@@ -140,7 +139,7 @@ class DatabaseMixin:
             'Specify it as **"schemas_allowed_for_csv_upload": '
             '["public", "csv_upload"]**. '
             "If database flavor does not support schema or any schema is allowed "
-            "to be accessed, just leave the list empty<br/>"
+            "to be accessed, just leave the list empty"
             "4. the ``version`` field is a string specifying the this db's version. "
             "This should be used with Presto DBs so that the syntax is correct",
             True,
@@ -200,7 +199,7 @@ class DatabaseMixin:
         "backend": _("Backend"),
     }
 
-    def _pre_add_update(self, database: Database) -> None:
+    def _pre_add_update(self, database):
         if app.config["PREVENT_UNSAFE_DB_CONNECTIONS"]:
             check_sqlalchemy_uri(database.sqlalchemy_uri)
         self.check_extra(database)
@@ -215,23 +214,23 @@ class DatabaseMixin:
                 "schema_access", security_manager.get_schema_perm(database, schema)
             )
 
-    def pre_add(self, database: Database) -> None:
+    def pre_add(self, database):
         self._pre_add_update(database)
 
-    def pre_update(self, database: Database) -> None:
+    def pre_update(self, database):
         self._pre_add_update(database)
 
-    def pre_delete(self, database: Database) -> None:  # pylint: disable=no-self-use
-        if database.tables:
+    def pre_delete(self, obj):  # pylint: disable=no-self-use
+        if obj.tables:
             raise SupersetException(
                 Markup(
                     "Cannot delete a database that has tables attached. "
                     "Here's the list of associated tables: "
-                    + ", ".join("{}".format(table) for table in database.tables)
+                    + ", ".join("{}".format(o) for o in obj.tables)
                 )
             )
 
-    def check_extra(self, database: Database) -> None:  # pylint: disable=no-self-use
+    def check_extra(self, database):  # pylint: disable=no-self-use
         # this will check whether json.loads(extra) can succeed
         try:
             extra = database.get_extra()
@@ -253,9 +252,7 @@ class DatabaseMixin:
                     )
                 )
 
-    def check_encrypted_extra(  # pylint: disable=no-self-use
-        self, database: Database
-    ) -> None:
+    def check_encrypted_extra(self, database):  # pylint: disable=no-self-use
         # this will check whether json.loads(secure_extra) can succeed
         try:
             database.get_encrypted_extra()

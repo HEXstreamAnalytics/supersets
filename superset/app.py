@@ -153,6 +153,12 @@ class SupersetAppInitializer:
         )
         from superset.charts.api import ChartRestApi
         from superset.views.chart.views import SliceModelView, SliceAsync
+
+        from superset.foldercharts.api import FolderChartRestApi
+        from superset.views.folderchart.views import FolderSliceModelView, FolderSliceAsync
+
+        from superset.HEXstream.api import HexStreamRestApi
+
         from superset.dashboards.api import DashboardRestApi
         from superset.views.dashboard.views import (
             DashboardModelView,
@@ -182,6 +188,8 @@ class SupersetAppInitializer:
         # Setup API views
         #
         appbuilder.add_api(ChartRestApi)
+        appbuilder.add_api(FolderChartRestApi)
+        appbuilder.add_api(HexStreamRestApi)
         appbuilder.add_api(DashboardRestApi)
         appbuilder.add_api(DatabaseRestApi)
         appbuilder.add_api(DatasetRestApi)
@@ -234,6 +242,24 @@ class SupersetAppInitializer:
             category="",
             category_icon="",
         )
+
+        appbuilder.add_view(
+            FolderSliceModelView,
+            "FolderView",
+            label=__("Folder View"),
+            icon="fa-bar-chart",
+            category="",
+            category_icon="",
+        )
+        # appbuilder.add_view(
+        #     SliceModelView,
+        #     "Hex Stream",
+        #     label=__("HEX Stream"),
+        #     icon="fa-bar-chart",
+        #     category="",
+        #     category_icon="",
+        # )
+
         appbuilder.add_view(
             DashboardModelView,
             "Dashboards",
@@ -286,6 +312,7 @@ class SupersetAppInitializer:
         appbuilder.add_view_no_menu(SavedQueryView)
         appbuilder.add_view_no_menu(SavedQueryViewApi)
         appbuilder.add_view_no_menu(SliceAsync)
+        appbuilder.add_view_no_menu(FolderSliceAsync)
         appbuilder.add_view_no_menu(SqlLab)
         appbuilder.add_view_no_menu(SqlMetricInlineView)
         appbuilder.add_view_no_menu(Superset)
@@ -309,6 +336,7 @@ class SupersetAppInitializer:
             category_label=__("Manage"),
             category_icon="fa-wrench",
         )
+        
         appbuilder.add_link(
             "SQL Editor",
             label=_("SQL Editor"),

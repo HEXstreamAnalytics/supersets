@@ -28,8 +28,7 @@ import {
 } from 'react-bootstrap';
 // @ts-ignore
 import Dialog from 'react-bootstrap-dialog';
-import { OptionsType } from 'react-select/src/types';
-import { AsyncSelect } from 'src/components/Select';
+import { Async as SelectAsync, Option } from 'react-select';
 import rison from 'rison';
 import { t } from '@superset-ui/translation';
 import { SupersetClient, Json } from '@superset-ui/connection';
@@ -47,11 +46,6 @@ type InternalProps = {
   slice: Slice;
   onHide: () => void;
   onSave: (chart: Chart) => void;
-};
-
-type OwnerOption = {
-  label: string;
-  value: number;
 };
 
 export type WrapperProps = InternalProps & {
@@ -84,7 +78,7 @@ function PropertiesModal({ slice, onHide, onSave }: InternalProps) {
   const [cacheTimeout, setCacheTimeout] = useState(
     slice.cache_timeout != null ? slice.cache_timeout : '',
   );
-  const [owners, setOwners] = useState<OptionsType<OwnerOption> | null>(null);
+  const [owners, setOwners] = useState<Option[] | null>(null);
 
   function showError({ error, statusText }: any) {
     errorDialog.current.show({
@@ -126,14 +120,15 @@ function PropertiesModal({ slice, onHide, onSave }: InternalProps) {
     }).then(
       response => {
         const { result } = response.json as Json;
-        return result.map((item: any) => ({
+        const options = result.map((item: any) => ({
           value: item.value,
           label: item.text,
         }));
+        return { options };
       },
       badResponse => {
         getClientErrorObject(badResponse).then(showError);
-        return [];
+        return { options: [] };
       },
     );
   };
@@ -244,16 +239,14 @@ function PropertiesModal({ slice, onHide, onSave }: InternalProps) {
               <label className="control-label" htmlFor="owners">
                 {t('Owners')}
               </label>
-              <AsyncSelect
-                isMulti
+              <SelectAsync
+                multi
                 name="owners"
                 value={owners || []}
                 loadOptions={loadOptions}
-                defaultOptions // load options on render
-                cacheOptions
                 onChange={setOwners}
                 disabled={!owners}
-                filterOption={null} // options are filtered at the api
+                filterOption={() => true} // options are filtered at the api
               />
               <p className="help-block">
                 {t(

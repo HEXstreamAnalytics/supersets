@@ -25,7 +25,7 @@ import {
   OverlayTrigger,
   Popover,
 } from 'react-bootstrap';
-import Select from 'src/components/Select';
+import Select from 'react-select';
 import { t } from '@superset-ui/translation';
 
 import { InfoTooltipWithTrigger } from '@superset-ui/control-utils';

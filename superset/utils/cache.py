@@ -14,21 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Optional
-
 from flask import request
 
 from superset.extensions import cache_manager
 
 
-def view_cache_key(*args: Any, **kwargs: Any) -> str:  # pylint: disable=unused-argument
+def view_cache_key(*_, **__) -> str:
     args_hash = hash(frozenset(request.args.items()))
     return "view/{}/{}".format(request.path, args_hash)
 
 
-def memoized_func(
-    key: Callable = view_cache_key, attribute_in_key: Optional[str] = None
-) -> Callable:
+def memoized_func(key=view_cache_key, attribute_in_key=None):
     """Use this decorator to cache functions that have predefined first arg.
 
     enable_cache is treated as True by default,
@@ -45,10 +41,10 @@ def memoized_func(
     returns the caching key.
     """
 
-    def wrap(f: Callable) -> Callable:
+    def wrap(f):
         if cache_manager.tables_cache:
 
-            def wrapped_f(self: Any, *args: Any, **kwargs: Any) -> Any:
+            def wrapped_f(self, *args, **kwargs):
                 if not kwargs.get("cache", True):
                     return f(self, *args, **kwargs)
 
@@ -69,7 +65,7 @@ def memoized_func(
 
         else:
             # noop
-            def wrapped_f(self: Any, *args: Any, **kwargs: Any) -> Any:
+            def wrapped_f(self, *args, **kwargs):
                 return f(self, *args, **kwargs)
 
         return wrapped_f

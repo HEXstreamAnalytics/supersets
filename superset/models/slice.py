@@ -24,9 +24,7 @@ from flask_appbuilder import Model
 from flask_appbuilder.models.decorators import renders
 from markupsafe import escape, Markup
 from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text
-from sqlalchemy.engine.base import Connection
 from sqlalchemy.orm import make_transient, relationship
-from sqlalchemy.orm.mapper import Mapper
 
 from superset import ConnectorRegistry, db, is_feature_enabled, security_manager
 from superset.legacy import update_time_range
@@ -94,7 +92,7 @@ class Slice(
         "cache_timeout",
     ]
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return self.slice_name or str(self.id)
 
     @property
@@ -135,7 +133,7 @@ class Slice(
         if self.table:
             return self.table.explore_url
         datasource = self.datasource
-        return datasource.explore_url if datasource else None
+        return datasource.name if datasource else None
 
     def datasource_name_text(self) -> Optional[str]:
         # pylint: disable=no-member
@@ -265,7 +263,7 @@ class Slice(
 
     @property
     def changed_by_url(self) -> str:
-        return f"/superset/profile/{self.created_by.username}"  # type: ignore
+        return f"/superset/profile/{self.created_by.username}"
 
     @property
     def icons(self) -> str:
@@ -326,7 +324,7 @@ class Slice(
         return f"/superset/explore/?form_data=%7B%22slice_id%22%3A%20{self.id}%7D"
 
 
-def set_related_perm(mapper: Mapper, connection: Connection, target: Slice) -> None:
+def set_related_perm(mapper, connection, target):
     # pylint: disable=unused-argument
     src_class = target.cls_model
     id_ = target.datasource_id
@@ -338,8 +336,8 @@ def set_related_perm(mapper: Mapper, connection: Connection, target: Slice) -> N
 
 
 def event_after_chart_changed(  # pylint: disable=unused-argument
-    mapper: Mapper, connection: Connection, target: Slice
-) -> None:
+    mapper, connection, target
+):
     cache_chart_thumbnail.delay(target.id, force=True)
 
 

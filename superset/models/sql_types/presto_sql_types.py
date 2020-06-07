@@ -14,12 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Optional, Type
 
 from sqlalchemy import types
 from sqlalchemy.sql.sqltypes import Integer
 from sqlalchemy.sql.type_api import TypeEngine
-from sqlalchemy.sql.visitors import Visitable
 
 # _compiler_dispatch is defined to help with type compilation
 
@@ -29,11 +27,11 @@ class TinyInteger(Integer):
     A type for tiny ``int`` integers.
     """
 
-    def python_type(self) -> Type:
+    def python_type(self):
         return int
 
     @classmethod
-    def _compiler_dispatch(cls, _visitor: Visitable, **_kw: Any) -> str:
+    def _compiler_dispatch(cls, _visitor, **_kw):
         return "TINYINT"
 
 
@@ -42,11 +40,11 @@ class Interval(TypeEngine):
     A type for intervals.
     """
 
-    def python_type(self) -> Optional[Type]:
+    def python_type(self):
         return None
 
     @classmethod
-    def _compiler_dispatch(cls, _visitor: Visitable, **_kw: Any) -> str:
+    def _compiler_dispatch(cls, _visitor, **_kw):
         return "INTERVAL"
 
 
@@ -55,11 +53,11 @@ class Array(TypeEngine):
     A type for arrays.
     """
 
-    def python_type(self) -> Optional[Type]:
+    def python_type(self):
         return list
 
     @classmethod
-    def _compiler_dispatch(cls, _visitor: Visitable, **_kw: Any) -> str:
+    def _compiler_dispatch(cls, _visitor, **_kw):
         return "ARRAY"
 
 
@@ -68,11 +66,11 @@ class Map(TypeEngine):
     A type for maps.
     """
 
-    def python_type(self) -> Optional[Type]:
+    def python_type(self):
         return dict
 
     @classmethod
-    def _compiler_dispatch(cls, _visitor: Visitable, **_kw: Any) -> str:
+    def _compiler_dispatch(cls, _visitor, **_kw):
         return "MAP"
 
 
@@ -81,11 +79,11 @@ class Row(TypeEngine):
     A type for rows.
     """
 
-    def python_type(self) -> Optional[Type]:
+    def python_type(self):
         return None
 
     @classmethod
-    def _compiler_dispatch(cls, _visitor: Visitable, **_kw: Any) -> str:
+    def _compiler_dispatch(cls, _visitor, **_kw):
         return "ROW"
 
 

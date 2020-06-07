@@ -152,6 +152,7 @@ export default () =>
         column: null,
         aggregate: null,
         hasCustomLabel: true,
+        fromFormData: true,
         label: '%+Girls',
         optionName: 'metric_6qwzgc8bh2v_zox7hil1mzs',
       };

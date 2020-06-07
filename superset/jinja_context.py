@@ -17,7 +17,7 @@
 """Defines the templating context for SQL Lab"""
 import inspect
 import re
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple
 
 from flask import g, request
 from jinja2.sandbox import SandboxedEnvironment
@@ -25,13 +25,6 @@ from jinja2.sandbox import SandboxedEnvironment
 from superset import jinja_base_context
 from superset.extensions import jinja_context_manager
 from superset.utils.core import convert_legacy_filters_into_adhoc, merge_extra_filters
-
-if TYPE_CHECKING:
-    from superset.connectors.sqla.models import (  # pylint: disable=unused-import
-        SqlaTable,
-    )
-    from superset.models.core import Database  # pylint: disable=unused-import
-    from superset.models.sql_lab import Query  # pylint: disable=unused-import
 
 
 def filter_values(column: str, default: Optional[str] = None) -> List[str]:
@@ -207,12 +200,12 @@ class BaseTemplateProcessor:  # pylint: disable=too-few-public-methods
 
     def __init__(
         self,
-        database: Optional["Database"] = None,
-        query: Optional["Query"] = None,
-        table: Optional["SqlaTable"] = None,
+        database=None,
+        query=None,
+        table=None,
         extra_cache_keys: Optional[List[Any]] = None,
-        **kwargs: Any,
-    ) -> None:
+        **kwargs
+    ):
         self.database = database
         self.query = query
         self.schema = None
@@ -237,7 +230,7 @@ class BaseTemplateProcessor:  # pylint: disable=too-few-public-methods
             self.context[self.engine] = self
         self.env = SandboxedEnvironment()
 
-    def process_template(self, sql: str, **kwargs: Any) -> str:
+    def process_template(self, sql: str, **kwargs) -> str:
         """Processes a sql template
 
         >>> sql = "SELECT '{{ datetime(2017, 1, 1).isoformat() }}'"
@@ -286,14 +279,12 @@ class PrestoTemplateProcessor(BaseTemplateProcessor):
         """
 
         table_name, schema = self._schema_table(table_name, self.schema)
-        assert self.database
-        return self.database.db_engine_spec.latest_partition(  # type: ignore
+        return self.database.db_engine_spec.latest_partition(
             table_name, schema, self.database
         )[1]
 
     def latest_sub_partition(self, table_name, **kwargs):
         table_name, schema = self._schema_table(table_name, self.schema)
-        assert self.database
         return self.database.db_engine_spec.latest_sub_partition(
             table_name=table_name, schema=schema, database=self.database, **kwargs
         )
@@ -314,12 +305,7 @@ for k in keys:
         template_processors[o.engine] = o
 
 
-def get_template_processor(
-    database: "Database",
-    table: Optional["SqlaTable"] = None,
-    query: Optional["Query"] = None,
-    **kwargs: Any,
-) -> BaseTemplateProcessor:
+def get_template_processor(database, table=None, query=None, **kwargs):
     template_processor = template_processors.get(
         database.backend, BaseTemplateProcessor
     )

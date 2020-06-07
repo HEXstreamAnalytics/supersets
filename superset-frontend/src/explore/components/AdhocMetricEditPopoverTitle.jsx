@@ -55,6 +55,12 @@ export default class AdhocMetricEditPopoverTitle extends React.Component {
     this.setState({ isEditable: false });
   }
 
+  refFunc(ref) {
+    if (ref) {
+      ref.focus();
+    }
+  }
+
   render() {
     const { adhocMetric, onChange } = this.props;
 
@@ -62,16 +68,7 @@ export default class AdhocMetricEditPopoverTitle extends React.Component {
       <Tooltip id="edit-metric-label-tooltip">Click to edit label</Tooltip>
     );
 
-    return this.state.isEditable ? (
-      <FormControl
-        className="metric-edit-popover-label-input"
-        type="text"
-        placeholder={adhocMetric.label}
-        value={adhocMetric.hasCustomLabel ? adhocMetric.label : ''}
-        autoFocus
-        onChange={onChange}
-      />
-    ) : (
+    return (
       <OverlayTrigger
         placement="top"
         overlay={editPrompt}
@@ -81,14 +78,25 @@ export default class AdhocMetricEditPopoverTitle extends React.Component {
         onBlur={this.onBlur}
         className="AdhocMetricEditPopoverTitle"
       >
-        <span className="inline-editable">
-          {adhocMetric.hasCustomLabel ? adhocMetric.label : 'My Metric'}
-          &nbsp;
-          <i
-            className="fa fa-pencil"
-            style={{ color: this.state.isHovered ? 'black' : 'grey' }}
+        {this.state.isEditable ? (
+          <FormControl
+            className="metric-edit-popover-label-input"
+            type="text"
+            placeholder={adhocMetric.label}
+            value={adhocMetric.hasCustomLabel ? adhocMetric.label : ''}
+            onChange={onChange}
+            inputRef={this.refFunc}
           />
-        </span>
+        ) : (
+          <span className="inline-editable">
+            {adhocMetric.hasCustomLabel ? adhocMetric.label : 'My Metric'}
+            &nbsp;
+            <i
+              className="fa fa-pencil"
+              style={{ color: this.state.isHovered ? 'black' : 'grey' }}
+            />
+          </span>
+        )}
       </OverlayTrigger>
     );
   }

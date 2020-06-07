@@ -18,7 +18,8 @@
  */
 import React from 'react';
 import PropTypes from 'prop-types';
-import { CreatableSelect } from 'src/components/Select';
+import VirtualizedSelect from 'react-virtualized-select';
+import { Creatable } from 'react-select';
 import { Button } from 'react-bootstrap';
 import { t } from '@superset-ui/translation';
 
@@ -26,7 +27,8 @@ import DateFilterControl from '../../explore/components/controls/DateFilterContr
 import ControlRow from '../../explore/components/ControlRow';
 import Control from '../../explore/components/Control';
 import controls from '../../explore/controls';
-import OnPasteSelect from '../../components/Select/OnPasteSelect';
+import OnPasteSelect from '../../components/OnPasteSelect';
+import VirtualizedRendererWrap from '../../components/VirtualizedRendererWrap';
 import { getDashboardFilterKey } from '../../dashboard/util/getDashboardFilterKey';
 import { getFilterColorMap } from '../../dashboard/util/dashboardFiltersColorMap';
 import {
@@ -101,21 +103,22 @@ class FilterBox extends React.Component {
       hasChanged: false,
     };
     this.changeFilter = this.changeFilter.bind(this);
-    this.onFilterMenuOpen = this.onFilterMenuOpen.bind(this);
-    this.onOpenDateFilterControl = this.onOpenDateFilterControl.bind(this);
+    this.onFilterMenuOpen = this.onFilterMenuOpen.bind(this, props.chartId);
     this.onFilterMenuClose = this.onFilterMenuClose.bind(this);
+    this.onFocus = this.onFilterMenuOpen;
+    this.onBlur = this.onFilterMenuClose;
+    this.onOpenDateFilterControl = this.onFilterMenuOpen.bind(
+      props.chartId,
+      TIME_RANGE,
+    );
   }
 
-  onFilterMenuOpen(column) {
-    return this.props.onFilterMenuOpen(this.props.chartId, column);
-  }
-
-  onOpenDateFilterControl() {
-    return this.onFilterMenuOpen(TIME_RANGE);
+  onFilterMenuOpen(chartId, column) {
+    this.props.onFilterMenuOpen(chartId, column);
   }
 
   onFilterMenuClose() {
-    return this.props.onFilterMenuClose(this.props.chartId);
+    this.props.onFilterMenuClose();
   }
 
   getControlData(controlName) {
@@ -174,8 +177,8 @@ class FilterBox extends React.Component {
               name={TIME_RANGE}
               label={label}
               description={t('Select start and end date')}
-              onChange={newValue => {
-                this.changeFilter(TIME_RANGE, newValue);
+              onChange={(...args) => {
+                this.changeFilter(TIME_RANGE, ...args);
               }}
               onOpenDateFilterControl={this.onOpenDateFilterControl}
               onCloseDateFilterControl={this.onFilterMenuClose}
@@ -270,34 +273,36 @@ class FilterBox extends React.Component {
         value = filterConfig[FILTER_CONFIG_ATTRIBUTES.DEFAULT_VALUE];
       }
     }
-
     return (
       <OnPasteSelect
-        key={key}
         placeholder={t('Select [%s]', label)}
-        isMulti={filterConfig[FILTER_CONFIG_ATTRIBUTES.MULTIPLE]}
-        isClearable={filterConfig.clearable}
+        key={key}
+        multi={filterConfig[FILTER_CONFIG_ATTRIBUTES.MULTIPLE]}
+        clearable={filterConfig.clearable}
         value={value}
-        options={data
-          .filter(opt => opt.id !== null)
-          .map(opt => {
-            const perc = Math.round((opt.metric / max) * 100);
-            const color = 'lightgrey';
-            const backgroundImage = `linear-gradient(to right, ${color}, ${color} ${perc}%, rgba(0,0,0,0) ${perc}%`;
-            const style = { backgroundImage };
-            return { value: opt.id, label: opt.id, style };
-          })}
-        onChange={newValue => {
-          // avoid excessive re-renders
-          if (newValue !== value) {
-            this.changeFilter(key, newValue);
-          }
+        options={data.map(opt => {
+          const perc = Math.round((opt.metric / max) * 100);
+          const backgroundImage =
+            'linear-gradient(to right, lightgrey, ' +
+            `lightgrey ${perc}%, rgba(0,0,0,0) ${perc}%`;
+          const style = {
+            backgroundImage,
+            padding: '2px 5px',
+          };
+          return { value: opt.id, label: opt.id, style };
+        })}
+        onChange={(...args) => {
+          this.changeFilter(key, ...args);
         }}
-        onFocus={() => this.onFilterMenuOpen(key)}
-        onMenuOpen={() => this.onFilterMenuOpen(key)}
-        onBlur={this.onFilterMenuClose}
-        onMenuClose={this.onFilterMenuClose}
-        selectWrap={CreatableSelect}
+        onFocus={this.onFocus}
+        onBlur={this.onBlur}
+        onOpen={(...args) => {
+          this.onFilterMenuOpen(key, ...args);
+        }}
+        onClose={this.onFilterMenuClose}
+        selectComponent={Creatable}
+        selectWrap={VirtualizedSelect}
+        optionRenderer={VirtualizedRendererWrap(opt => opt.label)}
         noResultsText={t('No results found')}
       />
     );

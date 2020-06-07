@@ -23,7 +23,7 @@ import { shallow } from 'enzyme';
 
 import MetricsControl from 'src/explore/components/controls/MetricsControl';
 import { AGGREGATES } from 'src/explore/constants';
-import OnPasteSelect from 'src/components/Select/OnPasteSelect';
+import OnPasteSelect from 'src/components/OnPasteSelect';
 import AdhocMetric, { EXPRESSION_TYPES } from 'src/explore/AdhocMetric';
 
 const defaultProps = {
@@ -138,11 +138,11 @@ describe('MetricsControl', () => {
           expressionType: EXPRESSION_TYPES.SIMPLE,
           column: { type: 'double', column_name: 'value' },
           aggregate: AGGREGATES.SUM,
+          fromFormData: true,
           label: 'SUM(value)',
           hasCustomLabel: false,
           optionName: 'blahblahblah',
           sqlExpression: null,
-          isNew: false,
         },
         'avg__value',
       ]);
@@ -163,8 +163,7 @@ describe('MetricsControl', () => {
       select.simulate('change', [valueColumn]);
 
       const adhocMetric = onChange.lastCall.args[0][0];
-      expect(adhocMetric).toBeInstanceOf(AdhocMetric);
-      expect(adhocMetric.isNew).toBe(true);
+      expect(adhocMetric instanceof AdhocMetric).toBe(true);
       expect(onChange.lastCall.args).toEqual([
         [
           {
@@ -172,46 +171,35 @@ describe('MetricsControl', () => {
             column: valueColumn,
             aggregate: AGGREGATES.SUM,
             label: 'SUM(value)',
+            fromFormData: false,
             hasCustomLabel: false,
             optionName: adhocMetric.optionName,
             sqlExpression: null,
-            isNew: true,
           },
         ],
       ]);
     });
 
-    it('handles aggregates being selected', done => {
+    it('handles aggregates being selected', () => {
       const { wrapper, onChange } = setup();
       const select = wrapper.find(OnPasteSelect);
 
       // mock out the Select ref
-      const instance = wrapper.instance();
-      const handleInputChangeSpy = jest.fn();
-      const focusInputSpy = jest.fn();
-      // simulate react-select StateManager
-      instance.selectRef({
-        select: {
-          handleInputChange: handleInputChangeSpy,
-          inputRef: { value: '' },
-          focusInput: focusInputSpy,
-        },
-      });
+      const setInputSpy = sinon.spy();
+      const handleInputSpy = sinon.spy();
+      wrapper.instance().select = {
+        setInputValue: setInputSpy,
+        handleInputChange: handleInputSpy,
+        input: { input: {} },
+      };
 
       select.simulate('change', [{ aggregate_name: 'SUM', optionName: 'SUM' }]);
 
-      expect(instance.select.inputRef.value).toBe('SUM()');
-      expect(handleInputChangeSpy).toHaveBeenCalledWith({
-        currentTarget: { value: 'SUM()' },
-      });
-      expect(onChange.calledOnceWith([])).toBe(true);
-      expect(focusInputSpy).toHaveBeenCalledTimes(0);
-      setTimeout(() => {
-        expect(focusInputSpy).toHaveBeenCalledTimes(1);
-        expect(instance.select.inputRef.selectionStart).toBe(4);
-        expect(instance.select.inputRef.selectionEnd).toBe(4);
-        done();
-      });
+      expect(setInputSpy.calledWith('SUM()')).toBe(true);
+      expect(handleInputSpy.calledWith({ target: { value: 'SUM()' } })).toBe(
+        true,
+      );
+      expect(onChange.lastCall.args).toEqual([[]]);
     });
 
     it('preserves existing selected AdhocMetrics', () => {
@@ -267,11 +255,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'a_metric',
-              optionName: 'a_metric',
-              expression: 'SUM(FANCY(metric))',
-            },
+            metric_name: 'a_metric',
+            optionName: 'a_metric',
+            expression: 'SUM(FANCY(metric))',
           },
           'a',
         ),
@@ -284,11 +270,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'avg__metric',
-              optionName: 'avg__metric',
-              expression: 'AVG(metric)',
-            },
+            metric_name: 'avg__metric',
+            optionName: 'avg__metric',
+            expression: 'AVG(metric)',
           },
           'a',
         ),
@@ -301,11 +285,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              type: 'VARCHAR(255)',
-              column_name: 'source',
-              optionName: '_col_source',
-            },
+            type: 'VARCHAR(255)',
+            column_name: 'source',
+            optionName: '_col_source',
           },
           'sou',
         ),
@@ -315,7 +297,7 @@ describe('MetricsControl', () => {
         !!wrapper
           .instance()
           .selectFilterOption(
-            { data: { aggregate_name: 'AVG', optionName: '_aggregate_AVG' } },
+            { aggregate_name: 'AVG', optionName: '_aggregate_AVG' },
             'av',
           ),
       ).toBe(true);
@@ -327,11 +309,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'sum__num',
-              verbose_name: 'babies',
-              optionName: '_col_sum_num',
-            },
+            metric_name: 'sum__num',
+            verbose_name: 'babies',
+            optionName: '_col_sum_num',
           },
           'bab',
         ),
@@ -344,11 +324,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'avg__metric',
-              optionName: 'avg__metric',
-              expression: 'AVG(metric)',
-            },
+            metric_name: 'avg__metric',
+            optionName: 'avg__metric',
+            expression: 'AVG(metric)',
           },
           'a',
         ),
@@ -361,11 +339,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'my_fancy_sum_metric',
-              optionName: 'my_fancy_sum_metric',
-              expression: 'SUM(value)',
-            },
+            metric_name: 'my_fancy_sum_metric',
+            optionName: 'my_fancy_sum_metric',
+            expression: 'SUM(value)',
           },
           'sum',
         ),
@@ -378,11 +354,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'sum__value',
-              optionName: 'sum__value',
-              expression: 'SUM(value)',
-            },
+            metric_name: 'sum__value',
+            optionName: 'sum__value',
+            expression: 'SUM(value)',
           },
           'sum',
         ),
@@ -391,11 +365,9 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper.instance().selectFilterOption(
           {
-            data: {
-              metric_name: 'sum__value',
-              optionName: 'sum__value',
-              expression: 'SUM("table"."value")',
-            },
+            metric_name: 'sum__value',
+            optionName: 'sum__value',
+            expression: 'SUM("table"."value")',
           },
           'sum',
         ),
@@ -407,12 +379,12 @@ describe('MetricsControl', () => {
       wrapper.setState({ aggregateInInput: true });
 
       expect(
-        !!wrapper.instance().selectFilterOption(
-          {
-            data: { metric_name: 'metric', expression: 'SUM(FANCY(metric))' },
-          },
-          'SUM(',
-        ),
+        !!wrapper
+          .instance()
+          .selectFilterOption(
+            { metric_name: 'metric', expression: 'SUM(FANCY(metric))' },
+            'SUM(',
+          ),
       ).toBe(false);
     });
 
@@ -423,10 +395,7 @@ describe('MetricsControl', () => {
       expect(
         !!wrapper
           .instance()
-          .selectFilterOption(
-            { data: { type: 'DOUBLE', column_name: 'value' } },
-            'SUM(',
-          ),
+          .selectFilterOption({ type: 'DOUBLE', column_name: 'value' }, 'SUM('),
       ).toBe(true);
     });
 

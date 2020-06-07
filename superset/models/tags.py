@@ -17,22 +17,14 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import enum
-from typing import List, Optional, TYPE_CHECKING, Union
+from typing import Optional
 
 from flask_appbuilder import Model
 from sqlalchemy import Column, Enum, ForeignKey, Integer, String
-from sqlalchemy.engine.base import Connection
-from sqlalchemy.orm import relationship, Session, sessionmaker
+from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm.mapper import Mapper
 
 from superset.models.helpers import AuditMixinNullable
-
-if TYPE_CHECKING:
-    from superset.models.core import FavStar  # pylint: disable=unused-import
-    from superset.models.dashboard import Dashboard  # pylint: disable=unused-import
-    from superset.models.slice import Slice  # pylint: disable=unused-import
-    from superset.models.sql_lab import Query  # pylint: disable=unused-import
 
 Session = sessionmaker(autoflush=False)
 
@@ -63,6 +55,7 @@ class ObjectTypes(enum.Enum):
     query = 1
     chart = 2
     dashboard = 3
+    folderview = 4
 
 
 class Tag(Model, AuditMixinNullable):
@@ -88,7 +81,7 @@ class TaggedObject(Model, AuditMixinNullable):
     tag = relationship("Tag", backref="objects")
 
 
-def get_tag(name: str, session: Session, type_: TagTypes) -> Tag:
+def get_tag(name, session, type_):
     try:
         tag = session.query(Tag).filter_by(name=name, type=type_).one()
     except NoResultFound:
@@ -99,8 +92,9 @@ def get_tag(name: str, session: Session, type_: TagTypes) -> Tag:
     return tag
 
 
-def get_object_type(class_name: str) -> ObjectTypes:
+def get_object_type(class_name):
     mapping = {
+        "folderview": ObjectTypes.folderview,
         "slice": ObjectTypes.chart,
         "dashboard": ObjectTypes.dashboard,
         "query": ObjectTypes.query,
@@ -116,15 +110,11 @@ class ObjectUpdater:
     object_type: Optional[str] = None
 
     @classmethod
-    def get_owners_ids(
-        cls, target: Union["Dashboard", "FavStar", "Slice"]
-    ) -> List[int]:
+    def get_owners_ids(cls, target):
         raise NotImplementedError("Subclass should implement `get_owners_ids`")
 
     @classmethod
-    def _add_owners(
-        cls, session: Session, target: Union["Dashboard", "FavStar", "Slice"]
-    ) -> None:
+    def _add_owners(cls, session, target):
         for owner_id in cls.get_owners_ids(target):
             name = "owner:{0}".format(owner_id)
             tag = get_tag(name, session, TagTypes.owner)
@@ -134,12 +124,7 @@ class ObjectUpdater:
             session.add(tagged_object)
 
     @classmethod
-    def after_insert(
-        cls,
-        mapper: Mapper,
-        connection: Connection,
-        target: Union["Dashboard", "FavStar", "Slice"],
-    ) -> None:
+    def after_insert(cls, mapper, connection, target):
         # pylint: disable=unused-argument
         session = Session(bind=connection)
 
@@ -156,12 +141,7 @@ class ObjectUpdater:
         session.commit()
 
     @classmethod
-    def after_update(
-        cls,
-        mapper: Mapper,
-        connection: Connection,
-        target: Union["Dashboard", "FavStar", "Slice"],
-    ) -> None:
+    def after_update(cls, mapper, connection, target):
         # pylint: disable=unused-argument
         session = Session(bind=connection)
 
@@ -186,12 +166,7 @@ class ObjectUpdater:
         session.commit()
 
     @classmethod
-    def after_delete(
-        cls,
-        mapper: Mapper,
-        connection: Connection,
-        target: Union["Dashboard", "FavStar", "Slice"],
-    ) -> None:
+    def after_delete(cls, mapper, connection, target):
         # pylint: disable=unused-argument
         session = Session(bind=connection)
 
@@ -209,7 +184,7 @@ class ChartUpdater(ObjectUpdater):
     object_type = "chart"
 
     @classmethod
-    def get_owners_ids(cls, target: "Slice") -> List[int]:
+    def get_owners_ids(cls, target):
         return [owner.id for owner in target.owners]
 
 
@@ -218,7 +193,7 @@ class DashboardUpdater(ObjectUpdater):
     object_type = "dashboard"
 
     @classmethod
-    def get_owners_ids(cls, target: "Dashboard") -> List[int]:
+    def get_owners_ids(cls, target):
         return [owner.id for owner in target.owners]
 
 
@@ -227,15 +202,13 @@ class QueryUpdater(ObjectUpdater):
     object_type = "query"
 
     @classmethod
-    def get_owners_ids(cls, target: "Query") -> List[int]:
+    def get_owners_ids(cls, target):
         return [target.user_id]
 
 
 class FavStarUpdater:
     @classmethod
-    def after_insert(
-        cls, mapper: Mapper, connection: Connection, target: "FavStar"
-    ) -> None:
+    def after_insert(cls, mapper, connection, target):
         # pylint: disable=unused-argument
         session = Session(bind=connection)
         name = "favorited_by:{0}".format(target.user_id)
@@ -250,9 +223,7 @@ class FavStarUpdater:
         session.commit()
 
     @classmethod
-    def after_delete(
-        cls, mapper: Mapper, connection: Connection, target: "FavStar"
-    ) -> None:
+    def after_delete(cls, mapper, connection, target):
         # pylint: disable=unused-argument
         session = Session(bind=connection)
         name = "favorited_by:{0}".format(target.user_id)

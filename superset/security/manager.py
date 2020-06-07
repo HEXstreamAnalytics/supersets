@@ -95,14 +95,10 @@ PermissionViewModelView.include_route_methods = {RouteMethod.LIST}
 PermissionModelView.include_route_methods = {RouteMethod.LIST}
 ViewMenuModelView.include_route_methods = {RouteMethod.LIST}
 
-RoleModelView.list_columns = ["name"]
-RoleModelView.edit_columns = ["name", "permissions", "user"]
-RoleModelView.related_views = []
-
 
 class SupersetSecurityManager(SecurityManager):
     userstatschartview = None
-    READ_ONLY_MODEL_VIEWS = {"DatabaseAsync", "DatabaseView", "DruidClusterModelView"}
+    READ_ONLY_MODEL_VIEWS = {"DatabaseAsync", "DatabaseView", "DruidClusterModelView", "FolderSliceModelView"}
 
     USER_MODEL_VIEWS = {
         "UserDBModelView",

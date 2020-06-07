@@ -50,6 +50,7 @@ export default () =>
       },
       aggregate: 'SUM',
       hasCustomLabel: false,
+      fromFormData: false,
       label: 'SUM(sum_boys)',
       optionName: 'metric_gvpdjt0v2qf_6hkf56o012',
     };
