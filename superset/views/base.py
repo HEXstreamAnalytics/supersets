@@ -241,6 +241,7 @@ class BaseSupersetView(BaseView):
 
 def menu_data():
     menu = appbuilder.menu.get_data()
+    menu.append({'name': 'FolderView', 'icon': 'fa-bar-chart', 'label': 'Folder View', 'url': '/folderview/list/'})
     root_path = "#"
     logo_target_path = ""
     if not g.user.is_anonymous:

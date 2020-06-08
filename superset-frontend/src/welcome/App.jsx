@@ -33,6 +33,7 @@ import FlashProvider from 'src/components/FlashProvider';
 import DashboardList from 'src/views/dashboardList/DashboardList';
 import ChartList from 'src/views/chartList/ChartList';
 import DatasetList from 'src/views/datasetList/DatasetList';
+import { FolderView } from 'src/components/HEXstream';
 
 import messageToastReducer from '../messageToasts/reducers';
 import { initEnhancer } from '../reduxUtils';
@@ -82,6 +83,13 @@ const App = () => (
                   <ChartList user={user} />
                 </ErrorBoundary>
               </Route>
+
+              <Route path="/folderview/list/">
+                <ErrorBoundary>
+                  <FolderView user={user} />
+                </ErrorBoundary>
+              </Route>
+
               <Route path="/tablemodelview/list/">
                 <ErrorBoundary>
                   <DatasetList user={user} />
