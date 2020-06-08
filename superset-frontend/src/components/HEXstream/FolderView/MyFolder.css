@@ -1,0 +1,63 @@
+
+.dx-treelist-header-panel {
+  border-bottom: 0px;
+}
+
+.dx-treelist .dx-column-lines > td {
+    border-left: 0px;
+    border-right: 0px;
+}
+
+.left {
+  float: left;
+}
+
+.middle {
+  display: flex;
+  align-items: center;
+}
+
+.pl-5 {
+  padding-left: 5px;
+}
+
+.m-20 {
+  margin: 20px;
+}
+
+.mlr-5 {
+  margin: 0px 5px;
+}
+
+.center {
+  text-align: center;
+}
+
+.modal {
+  background: white;
+  width: 30%;
+  position: relative;
+  top: 20%;
+  margin: auto !important;
+  display: block !important;
+}
+
+td {
+  text-align: center !important;
+}
+
+tbody tr td:first-child {
+  text-align: left !important;
+}
+
+.p-50 {
+  padding: 50px;
+}
+
+.MuiGrid-spacing-xs-3 > .MuiGrid-item {
+  text-align: center !important;
+}
+
+.MuiFormControl-root {
+  width: 100% !important;
+}
