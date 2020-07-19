@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=C,R,W
-# pylint: disable=invalid-unary-operand-type
+# pylint: skip-file
 import json
 import logging
 import re
@@ -45,7 +44,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship, Session
+from sqlalchemy.sql import expression
 from sqlalchemy_utils import EncryptedType
 
 from superset import conf, db, is_feature_enabled, security_manager
@@ -81,12 +82,7 @@ except ImportError:
     pass
 
 try:
-    from superset.utils.core import (
-        DimSelector,
-        DTTM_ALIAS,
-        FilterOperator,
-        flasher,
-    )
+    from superset.utils.core import DimSelector, DTTM_ALIAS, FilterOperator, flasher
 except ImportError:
     pass
 
@@ -210,11 +206,11 @@ class DruidCluster(Model, AuditMixinNullable, ImportMixin):
         If ``datasource_name`` is specified, only that datasource is updated
         """
         ds_list = self.get_datasources()
-        blacklist = conf.get("DRUID_DATA_SOURCE_BLACKLIST", [])
+        denylist = conf.get("DRUID_DATA_SOURCE_DENYLIST", [])
         ds_refresh: List[str] = []
         if not datasource_name:
-            ds_refresh = list(filter(lambda ds: ds not in blacklist, ds_list))
-        elif datasource_name not in blacklist and datasource_name in ds_list:
+            ds_refresh = list(filter(lambda ds: ds not in denylist, ds_list))
+        elif datasource_name not in denylist and datasource_name in ds_list:
             ds_refresh.append(datasource_name)
         else:
             return
@@ -286,12 +282,16 @@ class DruidCluster(Model, AuditMixinNullable, ImportMixin):
                 datasource.refresh_metrics()
         session.commit()
 
-    @property
+    @hybrid_property
     def perm(self) -> str:
-        return "[{obj.cluster_name}].(id:{obj.id})".format(obj=self)
+        return f"[{self.cluster_name}].(id:{self.id})"
+
+    @perm.expression  # type: ignore
+    def perm(cls) -> str:  # pylint: disable=no-self-argument
+        return "[" + cls.cluster_name + "].(id:" + expression.cast(cls.id, String) + ")"
 
     def get_perm(self) -> str:
-        return self.perm
+        return self.perm  # type: ignore
 
     @property
     def name(self) -> str:
@@ -845,7 +845,8 @@ class DruidDatasource(Model, BaseDatasource):
         else:
             granularity["type"] = "duration"
             granularity["duration"] = (
-                utils.parse_human_timedelta(period_name).total_seconds() * 1000  # type: ignore
+                utils.parse_human_timedelta(period_name).total_seconds()  # type: ignore
+                * 1000
             )
         return granularity
 
@@ -950,7 +951,7 @@ class DruidDatasource(Model, BaseDatasource):
 
     @staticmethod
     def metrics_and_post_aggs(
-        metrics: List[Metric], metrics_dict: Dict[str, DruidMetric],
+        metrics: List[Metric], metrics_dict: Dict[str, DruidMetric]
     ) -> Tuple["OrderedDict[str, Any]", "OrderedDict[str, Any]"]:
         # Separate metrics into those that are aggregations
         # and those that are post aggregations

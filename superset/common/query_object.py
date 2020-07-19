@@ -94,7 +94,7 @@ class QueryObject:
         extras: Optional[Dict[str, Any]] = None,
         columns: Optional[List[str]] = None,
         orderby: Optional[List[List[str]]] = None,
-        post_processing: Optional[List[Dict[str, Any]]] = None,
+        post_processing: Optional[List[Optional[Dict[str, Any]]]] = None,
         **kwargs: Any,
     ):
         metrics = metrics or []
@@ -114,7 +114,9 @@ class QueryObject:
         self.is_timeseries = is_timeseries
         self.time_range = time_range
         self.time_shift = utils.parse_human_timedelta(time_shift)
-        self.post_processing = post_processing or []
+        self.post_processing = [
+            post_proc for post_proc in post_processing or [] if post_proc
+        ]
         if not is_sip_38:
             self.groupby = groupby or []
 
@@ -141,8 +143,8 @@ class QueryObject:
         if is_sip_38 and groupby:
             self.columns += groupby
             logger.warning(
-                f"The field `groupby` is deprecated. Viz plugins should "
-                f"pass all selectables via the `columns` field"
+                "The field `groupby` is deprecated. Viz plugins should "
+                "pass all selectables via the `columns` field"
             )
 
         self.orderby = orderby or []
@@ -151,15 +153,18 @@ class QueryObject:
         for field in DEPRECATED_FIELDS:
             if field.old_name in kwargs:
                 logger.warning(
-                    f"The field `{field.old_name}` is deprecated, please use "
-                    f"`{field.new_name}` instead."
+                    "The field `%s` is deprecated, please use `%s` instead.",
+                    field.old_name,
+                    field.new_name,
                 )
                 value = kwargs[field.old_name]
                 if value:
                     if hasattr(self, field.new_name):
                         logger.warning(
-                            f"The field `{field.new_name}` is already populated, "
-                            f"replacing value with contents from `{field.old_name}`."
+                            "The field `%s` is already populated, "
+                            "replacing value with contents from `%s`.",
+                            field.new_name,
+                            field.old_name,
                         )
                     setattr(self, field.new_name, value)
 
@@ -167,16 +172,20 @@ class QueryObject:
         for field in DEPRECATED_EXTRAS_FIELDS:
             if field.old_name in kwargs:
                 logger.warning(
-                    f"The field `{field.old_name}` is deprecated and should be "
-                    f"passed to `extras` via the `{field.new_name}` property."
+                    "The field `%s` is deprecated and should "
+                    "be passed to `extras` via the `%s` property.",
+                    field.old_name,
+                    field.new_name,
                 )
                 value = kwargs[field.old_name]
                 if value:
                     if hasattr(self.extras, field.new_name):
                         logger.warning(
-                            f"The field `{field.new_name}` is already populated in "
-                            f"`extras`, replacing value with contents "
-                            f"from `{field.old_name}`."
+                            "The field `%s` is already populated in "
+                            "`extras`, replacing value with contents "
+                            "from `%s`.",
+                            field.new_name,
+                            field.old_name,
                         )
                     self.extras[field.new_name] = value
 
@@ -217,9 +226,9 @@ class QueryObject:
             del cache_dict[k]
         if self.time_range:
             cache_dict["time_range"] = self.time_range
-        json_data = self.json_dumps(cache_dict, sort_keys=True)
         if self.post_processing:
             cache_dict["post_processing"] = self.post_processing
+        json_data = self.json_dumps(cache_dict, sort_keys=True)
         return hashlib.md5(json_data.encode("utf-8")).hexdigest()
 
     def json_dumps(self, obj: Any, sort_keys: bool = False) -> str:

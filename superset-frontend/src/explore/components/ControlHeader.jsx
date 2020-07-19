@@ -20,7 +20,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { t } from '@superset-ui/translation';
 import { ControlLabel, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { InfoTooltipWithTrigger } from '@superset-ui/control-utils';
+import { InfoTooltipWithTrigger } from '@superset-ui/chart-controls';
 
 const propTypes = {
   name: PropTypes.string,
@@ -86,6 +86,8 @@ export default class ControlHeader extends React.Component {
           <ControlLabel>
             {this.props.leftNode && <span>{this.props.leftNode}</span>}
             <span
+              role="button"
+              tabIndex={0}
               onClick={this.props.onClick}
               className={labelClass}
               style={{ cursor: this.props.onClick ? 'pointer' : '' }}

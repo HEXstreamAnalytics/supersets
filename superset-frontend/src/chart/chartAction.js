@@ -18,7 +18,6 @@
  */
 /* eslint no-undef: 'error' */
 /* eslint no-param-reassign: ["error", { "props": false }] */
-import URI from 'urijs';
 import moment from 'moment';
 import { t } from '@superset-ui/translation';
 import { SupersetClient } from '@superset-ui/connection';
@@ -26,7 +25,6 @@ import { isFeatureEnabled, FeatureFlag } from '../featureFlags';
 import {
   getAnnotationJsonUrl,
   getExploreUrl,
-  getHostName,
   getLegacyEndpointType,
   buildV1ChartDataPayload,
   postForm,
@@ -149,10 +147,12 @@ const v1ChartDataRequest = async (
   force,
   requestParams,
 ) => {
-  const payload = buildV1ChartDataPayload({ formData, force });
-  // TODO: remove once these are added to superset-ui/query
-  payload.result_type = resultType;
-  payload.result_format = resultFormat;
+  const payload = buildV1ChartDataPayload({
+    formData,
+    resultType,
+    resultFormat,
+    force,
+  });
 
   // The dashboard id is added to query params for tracking purposes
   const qs = requestParams.dashboard_id
@@ -219,6 +219,7 @@ export function runAnnotationQuery(
   timeout = 60,
   formData = null,
   key,
+  isDashboardRequest = false,
 ) {
   return function (dispatch, getState) {
     const sliceKey = key || Object.keys(getState().charts)[0];
@@ -249,7 +250,7 @@ export function runAnnotationQuery(
       {},
     );
 
-    if (fd !== null) {
+    if (!isDashboardRequest && fd) {
       const hasExtraFilters = fd.extra_filters && fd.extra_filters.length > 0;
       sliceFormData.extra_filters = hasExtraFilters
         ? fd.extra_filters
@@ -408,13 +409,16 @@ export function exploreJSON(
       });
 
     const annotationLayers = formData.annotation_layers || [];
+    const isDashboardRequest = dashboardId > 0;
 
     return Promise.all([
       chartDataRequestCaught,
       dispatch(triggerQuery(false, key)),
       dispatch(updateQueryFormData(formData, key)),
       ...annotationLayers.map(x =>
-        dispatch(runAnnotationQuery(x, timeout, formData, key)),
+        dispatch(
+          runAnnotationQuery(x, timeout, formData, key, isDashboardRequest),
+        ),
       ),
     ]);
   };
