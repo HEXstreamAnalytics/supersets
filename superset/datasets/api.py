@@ -25,6 +25,7 @@ from marshmallow import ValidationError
 
 from superset.connectors.sqla.models import SqlaTable
 from superset.constants import RouteMethod
+from superset.databases.filters import DatabaseFilter
 from superset.datasets.commands.create import CreateDatasetCommand
 from superset.datasets.commands.delete import DeleteDatasetCommand
 from superset.datasets.commands.exceptions import (
@@ -51,7 +52,6 @@ from superset.views.base_api import (
     RelatedFieldFilter,
     statsd_metrics,
 )
-from superset.views.database.filters import DatabaseFilter
 from superset.views.filters import FilterRelatedOwners
 
 logger = logging.getLogger(__name__)
@@ -67,18 +67,20 @@ class DatasetRestApi(BaseSupersetModelRestApi):
     include_route_methods = RouteMethod.REST_MODEL_VIEW_CRUD_SET | {
         RouteMethod.EXPORT,
         RouteMethod.RELATED,
+        RouteMethod.DISTINCT,
         "refresh",
         "related_objects",
     }
     list_columns = [
         "id",
-        "database_id",
-        "database_name",
-        "changed_by_fk",
+        "database.id",
+        "database.database_name",
         "changed_by_name",
         "changed_by_url",
+        "changed_by.first_name",
         "changed_by.username",
-        "changed_on",
+        "changed_on_utc",
+        "changed_on_delta_humanized",
         "default_endpoint",
         "explore_url",
         "kind",
@@ -90,7 +92,16 @@ class DatasetRestApi(BaseSupersetModelRestApi):
         "sql",
         "table_name",
     ]
+    list_select_columns = list_columns + ["changed_on", "changed_by_fk"]
+    order_columns = [
+        "table_name",
+        "schema",
+        "changed_by.first_name",
+        "changed_on_delta_humanized",
+        "database.database_name",
+    ]
     show_columns = [
+        "id",
         "database.database_name",
         "database.id",
         "table_name",
@@ -111,6 +122,8 @@ class DatasetRestApi(BaseSupersetModelRestApi):
         "owners.last_name",
         "columns",
         "metrics",
+        "datasource_type",
+        "url",
     ]
     add_model_schema = DatasetPostSchema()
     edit_model_schema = DatasetPutSchema()
@@ -139,6 +152,7 @@ class DatasetRestApi(BaseSupersetModelRestApi):
     }
     filter_rel_fields = {"database": [["id", DatabaseFilter, lambda: []]]}
     allowed_rel_fields = {"database", "owners"}
+    allowed_distinct_fields = {"schema"}
 
     openapi_spec_component_schemas = (DatasetRelatedObjectsResponse,)
 
