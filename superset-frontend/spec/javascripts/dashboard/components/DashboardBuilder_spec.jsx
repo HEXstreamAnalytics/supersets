@@ -22,7 +22,7 @@ import { shallow, mount } from 'enzyme';
 import sinon from 'sinon';
 
 import { ParentSize } from '@vx/responsive';
-import { supersetTheme, ThemeProvider } from '@superset-ui/style';
+import { supersetTheme, ThemeProvider } from '@superset-ui/core';
 import { Sticky, StickyContainer } from 'react-sticky';
 import { TabContainer, TabContent, TabPane } from 'react-bootstrap';
 
@@ -62,9 +62,6 @@ describe('DashboardBuilder', () => {
     dashboardLayout,
     deleteTopLevelTabs() {},
     editMode: false,
-    showBuilderPane() {},
-    setColorSchemeAndUnsavedChanges() {},
-    colorScheme: undefined,
     handleComponentDrop() {},
     setDirectPathToChild: sinon.spy(),
   };

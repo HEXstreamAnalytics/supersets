@@ -33,10 +33,6 @@ const propTypes = {
   placement: PropTypes.string,
 };
 
-const defaultProps = {
-  hotkeys: [],
-};
-
 export default class Hotkeys extends React.PureComponent {
   componentDidMount() {
     this.props.hotkeys.forEach(keyConfig => {
@@ -45,6 +41,7 @@ export default class Hotkeys extends React.PureComponent {
       }
     });
   }
+
   renderPopover() {
     const { header, hotkeys } = this.props;
     return (
@@ -70,6 +67,7 @@ export default class Hotkeys extends React.PureComponent {
       </Popover>
     );
   }
+
   render() {
     return (
       <OverlayTrigger
@@ -84,4 +82,3 @@ export default class Hotkeys extends React.PureComponent {
 }
 
 Hotkeys.propTypes = propTypes;
-Hotkeys.defaultProps = defaultProps;

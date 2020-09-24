@@ -69,7 +69,6 @@ const propTypes = {
 };
 
 const defaultProps = {
-  children: null,
   renderTabContent: true,
   renderHoverMenu: true,
   availableColumnCount: 0,
@@ -130,7 +129,7 @@ class Tabs extends React.PureComponent {
 
   handleClickTab(tabIndex, ev) {
     if (ev) {
-      const target = ev.target;
+      const { target } = ev;
       // special handler for clicking on anchor link icon (or whitespace nearby):
       // will show short link popover but do not change tab
       if (target && target.classList.contains('short-link-trigger')) {

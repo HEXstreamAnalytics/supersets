@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from 'react';
+import React, { CSSProperties } from 'react';
 import { Label as BootstrapLabel } from 'react-bootstrap';
-import styled from '@superset-ui/style';
+import { styled } from '@superset-ui/core';
 import cx from 'classnames';
 
 export type OnClickHandler = React.MouseEventHandler<BootstrapLabel>;
@@ -31,7 +31,7 @@ export interface LabelProps {
   placement?: string;
   onClick?: OnClickHandler;
   bsStyle?: string;
-  style?: BootstrapLabel.LabelProps['style'];
+  style?: CSSProperties;
   children?: React.ReactNode;
 }
 

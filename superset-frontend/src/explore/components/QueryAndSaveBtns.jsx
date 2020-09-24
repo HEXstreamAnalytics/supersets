@@ -19,8 +19,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { ButtonGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { t } from '@superset-ui/translation';
-import styled from '@superset-ui/style';
+import { t, styled } from '@superset-ui/core';
 
 import Button from 'src/components/Button';
 import Hotkeys from '../../components/Hotkeys';
@@ -38,7 +37,6 @@ const propTypes = {
 const defaultProps = {
   onStop: () => {},
   onSave: () => {},
-  disabled: false,
 };
 
 // Prolly need to move this to a global context
@@ -75,7 +73,7 @@ export default function QueryAndSaveBtns({
   chartIsStale,
   errorMessage,
 }) {
-  let qryButtonStyle = 'secondary';
+  let qryButtonStyle = 'tertiary';
   if (errorMessage) {
     qryButtonStyle = 'danger';
   } else if (chartIsStale) {
@@ -110,7 +108,7 @@ export default function QueryAndSaveBtns({
         <ButtonGroup className="query-and-save">
           {qryOrStopButton}
           <Button
-            buttonStyle="secondary"
+            buttonStyle="tertiary"
             buttonSize="small"
             data-target="#save_modal"
             data-toggle="modal"
@@ -126,7 +124,7 @@ export default function QueryAndSaveBtns({
             <OverlayTrigger
               placement="right"
               overlay={
-                <Tooltip id={'query-error-tooltip'}>{errorMessage}</Tooltip>
+                <Tooltip id="query-error-tooltip">{errorMessage}</Tooltip>
               }
             >
               <i className="fa fa-exclamation-circle text-danger fa-lg" />
