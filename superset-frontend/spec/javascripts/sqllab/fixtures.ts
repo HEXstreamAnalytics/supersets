@@ -327,6 +327,16 @@ export const queryWithBadColumns = {
         type: 'TIMESTAMP',
       },
       {
+        is_date: false,
+        name: 'my_dupe_col__2',
+        type: 'STRING',
+      },
+      {
+        is_date: true,
+        name: '__timestamp',
+        type: 'TIMESTAMP',
+      },
+      {
         is_date: true,
         name: '__TIMESTAMP',
         type: 'TIMESTAMP',
@@ -482,4 +492,9 @@ export const query = {
   runAsync: false,
   ctas: false,
   cached: false,
+};
+
+export const dataTableProps = {
+  columns: ['dbId', 'sql'],
+  queries,
 };

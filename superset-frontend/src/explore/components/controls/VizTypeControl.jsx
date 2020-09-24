@@ -27,8 +27,7 @@ import {
   OverlayTrigger,
   Tooltip,
 } from 'react-bootstrap';
-import { t } from '@superset-ui/translation';
-import { getChartMetadataRegistry } from '@superset-ui/chart';
+import { t, getChartMetadataRegistry } from '@superset-ui/core';
 
 import ControlHeader from '../ControlHeader';
 import './VizTypeControl.less';
@@ -121,7 +120,7 @@ export default class VizTypeControl extends React.PureComponent {
   }
 
   toggleModal() {
-    this.setState({ showModal: !this.state.showModal });
+    this.setState(prevState => ({ showModal: !prevState.showModal }));
   }
 
   changeSearch(event) {

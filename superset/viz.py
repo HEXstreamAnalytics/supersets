@@ -27,7 +27,7 @@ import logging
 import math
 import re
 from collections import defaultdict, OrderedDict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from itertools import product
 from typing import (
     Any,
@@ -647,11 +647,11 @@ class TableViz(BaseViz):
 
     def process_metrics(self) -> None:
         """Process form data and store parsed column configs.
-           1. Determine query mode based on form_data params.
-                - Use `query_mode` if it has a valid value
-                - Set as RAW mode if `all_columns` is set
-                - Otherwise defaults to AGG mode
-           2. Determine output columns based on query mode.
+        1. Determine query mode based on form_data params.
+             - Use `query_mode` if it has a valid value
+             - Set as RAW mode if `all_columns` is set
+             - Otherwise defaults to AGG mode
+        2. Determine output columns based on query mode.
         """
         # Verify form data first: if not specifying query mode, then cannot have both
         # GROUP BY and RAW COLUMNS.
@@ -856,6 +856,31 @@ class PivotTableViz(BaseViz):
         # only min and max work properly for non-numerics
         return aggfunc if aggfunc in ("min", "max") else "max"
 
+    @staticmethod
+    def _format_datetime(value: Union[pd.Timestamp, datetime, date, str]) -> str:
+        """
+        Format a timestamp in such a way that the viz will be able to apply
+        the correct formatting in the frontend.
+
+        :param value: the value of a temporal column
+        :return: formatted timestamp if it is a valid timestamp, otherwise
+                 the original value
+        """
+        tstamp: Optional[pd.Timestamp] = None
+        if isinstance(value, pd.Timestamp):
+            tstamp = value
+        if isinstance(value, datetime) or isinstance(value, date):
+            tstamp = pd.Timestamp(value)
+        if isinstance(value, str):
+            try:
+                tstamp = pd.Timestamp(value)
+            except ValueError:
+                pass
+        if tstamp:
+            return f"__timestamp:{datetime_to_epoch(tstamp)}"
+        # fallback in case something incompatible is returned
+        return cast(str, value)
+
     def get_data(self, df: pd.DataFrame) -> VizData:
         if df.empty:
             return None
@@ -871,15 +896,10 @@ class PivotTableViz(BaseViz):
         groupby = self.form_data.get("groupby") or []
         columns = self.form_data.get("columns") or []
 
-        def _format_datetime(value: Any) -> Optional[str]:
-            if isinstance(value, str):
-                return f"__timestamp:{datetime_to_epoch(pd.Timestamp(value))}"
-            return None
-
         for column_name in groupby + columns:
             column = self.datasource.get_column(column_name)
-            if column and column.type in ("DATE", "DATETIME", "TIMESTAMP"):
-                ts = df[column_name].apply(_format_datetime)
+            if column and column.is_temporal:
+                ts = df[column_name].apply(self._format_datetime)
                 df[column_name] = ts
 
         if self.form_data.get("transpose_pivot"):
@@ -1624,57 +1644,6 @@ class NVD3TimeSeriesStackedViz(NVD3TimeSeriesViz):
     pivot_fill_value = 0
 
 
-class DistributionPieViz(NVD3Viz):
-
-    """Annoy visualization snobs with this controversial pie chart"""
-
-    viz_type = "pie"
-    verbose_name = _("Distribution - NVD3 - Pie Chart")
-    is_timeseries = False
-
-    def get_data(self, df: pd.DataFrame) -> VizData:
-        def _label_aggfunc(labels: pd.Series) -> str:
-            """
-            Convert a single or multi column label into a single label, replacing
-            null values with `NULL_STRING` and joining multiple columns together
-            with a comma. Examples:
-
-            >>> _label_aggfunc(pd.Series(["abc"]))
-            'abc'
-            >>> _label_aggfunc(pd.Series([1]))
-            '1'
-            >>> _label_aggfunc(pd.Series(["abc", "def"]))
-            'abc, def'
-            >>> # note: integer floats are stripped of decimal digits
-            >>> _label_aggfunc(pd.Series([0.1, 2.0, 0.3]))
-            '0.1, 2, 0.3'
-            >>> _label_aggfunc(pd.Series([1, None, "abc", 0.8], dtype="object"))
-            '1, <NULL>, abc, 0.8'
-            """
-            label_list: List[str] = []
-            for label in labels:
-                if isinstance(label, str):
-                    label_recast = label
-                elif label is None or isinstance(label, float) and math.isnan(label):
-                    label_recast = NULL_STRING
-                elif isinstance(label, float) and label.is_integer():
-                    label_recast = str(int(label))
-                else:
-                    label_recast = str(label)
-                label_list.append(label_recast)
-
-            return ", ".join(label_list)
-
-        if df.empty:
-            return None
-        metric = self.metric_labels[0]
-        df = pd.DataFrame(
-            {"x": df[self.groupby].agg(func=_label_aggfunc, axis=1), "y": df[metric]}
-        )
-        df.sort_values(by="y", ascending=False, inplace=True)
-        return df.to_dict(orient="records")
-
-
 class HistogramViz(BaseViz):
 
     """Histogram"""
@@ -1731,7 +1700,7 @@ class HistogramViz(BaseViz):
         return chart_data
 
 
-class DistributionBarViz(DistributionPieViz):
+class DistributionBarViz(BaseViz):
 
     """A good old bar chart"""
 
@@ -2994,23 +2963,25 @@ class PartitionViz(NVD3TimeSeriesViz):
                 for m in levels[0].index
             ]
         if level == 1:
+            metric_level = levels[1][metric]
             return [
                 {
                     "name": i,
-                    "val": levels[1][metric][i],
+                    "val": metric_level[i],
                     "children": self.nest_values(levels, 2, metric, [i]),
                 }
-                for i in levels[1][metric].index
+                for i in metric_level.index
             ]
         if level >= len(levels):
             return []
+        dim_level = levels[level][metric][[dims[0]]]
         return [
             {
                 "name": i,
-                "val": levels[level][metric][dims][i],
+                "val": dim_level[i],
                 "children": self.nest_values(levels, level + 1, metric, dims + [i]),
             }
-            for i in levels[level][metric][dims].index
+            for i in dim_level.index
         ]
 
     def nest_procs(

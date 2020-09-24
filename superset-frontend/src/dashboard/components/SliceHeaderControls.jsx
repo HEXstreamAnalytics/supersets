@@ -20,7 +20,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import { Dropdown, MenuItem } from 'react-bootstrap';
-import { t } from '@superset-ui/translation';
+import { t } from '@superset-ui/core';
 import URLShortLinkModal from '../../components/URLShortLinkModal';
 import downloadAsImage from '../../utils/downloadAsImage';
 import getDashboardUrl from '../util/getDashboardUrl';
@@ -103,9 +103,9 @@ class SliceHeaderControls extends React.PureComponent {
   }
 
   toggleControls() {
-    this.setState({
-      showControls: !this.state.showControls,
-    });
+    this.setState(prevState => ({
+      showControls: !prevState.showControls,
+    }));
   }
 
   handleToggleFullSize() {
